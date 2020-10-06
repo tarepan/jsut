@@ -69,7 +69,7 @@ class NpVCC2016(Dataset):  # I failed to understand this error
 
     ver: str = "1.0.0"
     corpus_name: str = f"npVCC2016-{ver}"
-    url: str = f"https://github.com/tarepan/npVCC2016/releases/download/v{ver}/{corpus_name}.zip"
+    url: str = f"https://github.com/tarepan/npVCC2016Corpus/releases/download/v{ver}/{corpus_name}.zip"
     speakers = ("SF1", "SM1", "TF2", "TM3")
 
     def __init__(
