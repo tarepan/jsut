@@ -1,4 +1,6 @@
 # `npVCC2016` - Python loader of npVCC2016Corpus
+[![PyPI version](https://badge.fury.io/py/npVCC2016.svg)](https://badge.fury.io/py/npVCC2016)
+![Python Versions](https://img.shields.io/pypi/pyversions/npVCC2016.svg)  
 
 `npVCC2016` is a Python loader set for [npVCC2016 non-parallel speech corpus](https://github.com/tarepan/npVCC2016Corpus).  
 For machine learning, corpus/dataset is indispensable - but troublesome - part.  
