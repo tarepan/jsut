@@ -26,4 +26,5 @@ RUN mkdir -p ${PIP_TARGET} \
 # package dependency manager `poetry` without environment isolation (It is a job of Docker.)
 ENV POETRY_VIRTUALENVS_CREATE=false
 RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
+RUN echo ${HOME}
 RUN ls ${HOME}/.poetry/bin -a
