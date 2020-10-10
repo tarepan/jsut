@@ -35,12 +35,9 @@
     "ms-python.python",
     "ms-python.vscode-pylance"
   ],
-  // Use 'forwardPorts' to make a list of ports inside the container available locally.
   "forwardPorts": [
     9000
   ],
-  // Use 'postCreateCommand' to run commands after the container is created.
-  "postCreateCommand": "pip3 install -r requirements.txt",
-  // Comment out to connect as root instead.
-  "remoteUser": "vscode"
+  "postCreateCommand": "~/.poetry/bin/poetry install",
+  "remoteUser": "root"
 }
