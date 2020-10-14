@@ -63,6 +63,8 @@ class NpVCC2016_spec(waveform.NpVCC2016):
             # no stub problem (see import parts) + torchaudio internal override (It is my guess. It looks like no-interface problem?)
             # pylint: disable=no-member
             wave, _sr = torchaudio.load(self._calc_path_wav(self._path_corpus, id))  # type: ignore
+            # [1, Length] -> [Length,]
+            wave = wave[0, :]
             p = self._calc_path_spec(self._path_corpus, id)
             # defaults: hop_length = win_length // 2, window_fn = torch.hann_window, power = 2
             spec: Tensor = Spectrogram(254)(wave)  # type cannot be inferred
@@ -87,6 +89,7 @@ class NpVCC2016_spec(waveform.NpVCC2016):
             waveform: Tensor
             # pylint: disable=no-member
             waveform, _sr = torchaudio.load(self._calc_path_wav(path_corpus, id))  # type: ignore
+            waveform = waveform[0, :]
             return Datum_NpVCC2016_spec_test(
                 waveform, spec, f"{id.mode}-{id.speaker}-{id.serial_num}"
             )

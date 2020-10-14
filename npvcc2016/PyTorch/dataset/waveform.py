@@ -158,8 +158,10 @@ class NpVCC2016(Dataset):  # I failed to understand this error
 
     def _load_datum(self, path_corpus: Path, id: Datum_identity) -> Datum_NpVCC2016:
         # no stub problem (see import parts) + torchaudio internal override (It is my guess. It looks like no-interface problem?)
+        waveform: Tensor
         # pylint: disable=no-member
         waveform, _sr = torchaudio.load(self._calc_path_wav(path_corpus, id))  # type: ignore
+        waveform = waveform[0, :]
         return Datum_NpVCC2016(self._transform(waveform), f"{id.mode}-{id.speaker}-{id.serial_num}")  # type: ignore
 
     def __getitem__(self, n: int) -> Datum_NpVCC2016:
