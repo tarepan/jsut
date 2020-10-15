@@ -79,7 +79,7 @@ class NpVCC2016_spec(waveform.NpVCC2016):
         spec_path = self._calc_path_spec(path_corpus, id)
         # no stub problem (see import parts) + torchaudio internal override (It is my guess. It looks like no-interface problem?)
         # pylint: disable=no-member
-        spec: Tensor = torch.load(spec_path)  # type: ignore
+        spec: Tensor = self._transform(torch.load(spec_path))  # type: ignore
         if self._train:
             return Datum_NpVCC2016_spec_train(
                 spec, f"{id.mode}-{id.speaker}-{id.serial_num}"
