@@ -45,3 +45,14 @@ npVCC2016 corpus is speech corpus, so we provide `waveform` dataset and `spectro
 `waveform` dataset has easy-to-extend structure.  
 By overiding hook functions, you can customize preprocessing for your machine-learning tasks.  
 Please check `dataset`-`waveform` file.  
+
+## Dependency Notes
+### PyTorch version
+PyTorch version: PyTorch v1.6 is working (We checked with v1.6.0).  
+
+For dependency resolution, we do **NOT** explicitly specify the compatible versions.  
+PyTorch have several distributions for various environment (e.g. compatible CUDA version.)  
+Unfortunately it make dependency version management complicated for dependency management system.  
+In our case, the system `poetry` cannot handle cuda variant string (e.g. `torch>=1.6.0` cannot accept `1.6.0+cu101`.)  
+In order to resolve this problem, we use `torch==*`, it is equal to no version specification.  
+`Setup.py` could resolve this problem (e.g. `torchaudio`'s `setup.py`), but we will not bet our effort to this hacky method.  
