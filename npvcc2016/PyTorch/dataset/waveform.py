@@ -16,7 +16,8 @@ Alternatively, super().__init__ & additional preprocessing in extended class's _
 """
 
 
-from typing import Callable, List, Literal, NamedTuple
+# from typing import Callable, List, Literal, NamedTuple # >= Python3.8
+from typing import Callable, List, NamedTuple
 from itertools import chain
 from pathlib import Path
 
@@ -28,11 +29,13 @@ import torchaudio  # type: ignore
 from torchaudio.datasets.utils import download_url, extract_archive  # type: ignore
 
 
-Speaker = Literal["SF1", "SM1", "TF2", "TM3"]
+# Speaker = Literal["SF1", "SM1", "TF2", "TM3"] # >=Python3.8
+Speaker = str
 
 
 class Datum_identity(NamedTuple):
-    mode: Literal["evals", "trains"]
+    # mode: Literal["evals", "trains"] # >= Python3.8
+    mode: str
     speaker: Speaker
     serial_num: str
 
@@ -114,7 +117,8 @@ class NpVCC2016(Dataset):  # I failed to understand this error
 
         # Extract corpus item identities
         ## directory strucutre: /("evals"|"trains")/(Speaker)/wavs/xxxxx.wav
-        def speaker2dir(speaker: Speaker, trainEvals: Literal["trains", "evals"]):
+        # def speaker2dir(speaker: Speaker, trainEvals: Literal["trains", "evals"]): # >=Python3.8
+        def speaker2dir(speaker: Speaker, trainEvals: str):
             return self._path_corpus / trainEvals / speaker / "wavs"
 
         self._corpus_item_identities: List[Datum_identity] = []
@@ -178,7 +182,7 @@ class NpVCC2016(Dataset):  # I failed to understand this error
 if __name__ == "__main__":
     print("This is waveform.py")
     # dataset preparation
-    # NpVCC2016(".", train=True, download=True)  # commented out for safety
+    NpVCC2016(".", train=True, download=True)
 
     # setup
     dataset_train_full = NpVCC2016(".", train=True, download=False)
