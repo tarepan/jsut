@@ -42,7 +42,9 @@ class NpVCC2016_spec(waveform.NpVCC2016):
         download: bool = False,
         speakers: List[waveform.Speaker] = ["SF1", "SM1", "TF2", "TM3"],
         transform: Callable[[Tensor], Tensor] = (lambda i: i),
+        cache: bool = False,
     ):
+        self._cache = cache
         # preparation + preprocessing with super init
         super().__init__(root, train, download, speakers, transform)
 
@@ -50,11 +52,14 @@ class NpVCC2016_spec(waveform.NpVCC2016):
         """
         Preprocess corpus waveform into spectrogram
         """
+        # prepare cache dictionary
+        self._data_cache = {"trains": {}, "evals": {}}
         # spec directory preparation. directory strucutre: /("evals"|"trains")/(Speaker)/specs/xxxxx.spec
         for te in ["trains", "evals"]:
-            # prepare directories.
+            # prepare speaker directories/dictionaries.
             for speaker in ["SF1", "SM1", "TF2", "TM3"]:
                 (self._path_corpus / te / speaker / "specs").mkdir(exist_ok=True)
+                self._data_cache[te][speaker] = {}
 
         # wave2spec
         ids = self._corpus_item_identities
@@ -69,9 +74,15 @@ class NpVCC2016_spec(waveform.NpVCC2016):
             # defaults: hop_length = win_length // 2, window_fn = torch.hann_window, power = 2
             spec: Tensor = Spectrogram(254)(wave)  # type cannot be inferred
             save(spec, p)
+            # cache registration
+            if self._cache:
+                self._data_cache[id.mode][id.speaker][id.serial_num] = spec
 
     def _calc_path_spec(self, path_corpus: Path, id: waveform.Datum_identity) -> Path:
         return path_corpus / id.mode / id.speaker / "specs" / f"{id.serial_num}.spec"
+
+    def _load_spec_cache(self, id: waveform.Datum_identity) -> Tensor:
+        return self._data_cache[id.mode][id.speaker][id.serial_num]
 
     def _load_datum(
         self, path_corpus: Path, id: waveform.Datum_identity
@@ -79,7 +90,7 @@ class NpVCC2016_spec(waveform.NpVCC2016):
         spec_path = self._calc_path_spec(path_corpus, id)
         # no stub problem (see import parts) + torchaudio internal override (It is my guess. It looks like no-interface problem?)
         # pylint: disable=no-member
-        spec: Tensor = self._transform(torch.load(spec_path))  # type: ignore
+        spec: Tensor = self._transform(self._load_spec_cache(id) if self._cache else torch.load(spec_path))  # type: ignore
         if self._train:
             return Datum_NpVCC2016_spec_train(
                 spec, f"{id.mode}-{id.speaker}-{id.serial_num}"
@@ -111,7 +122,7 @@ if __name__ == "__main__":
 
     # setup
     dataset_train_SF1 = NpVCC2016_spec(
-        ".", train=True, download=False, speakers=["SF1"]
+        ".", train=True, download=False, speakers=["SF1"], cache=True
     )
     print(dataset_train_SF1[0])
     print(torch.load("./npVCC2016-1.0.0/trains/SF1/specs/100056.spec"))
