@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "npvcc2016"
-version = "1.2.1"
+version = "1.2.2"
 description = "npvcc2016: Python loader of npVCC2016 speech corpus"
 authors = ["Tarepan"]
 license = "MIT"
@@ -12,7 +12,7 @@ repository = "https://github.com/tarepan/npVCC2016"
 python = "^3.6.1"
 torch = "*"
 torchaudio = "^0.7.0"
-pytorch-lightning = "^0.10.0"
+pytorch-lightning = "^1.0.6"
 
 [tool.poetry.dev-dependencies]
 
