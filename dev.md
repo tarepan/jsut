@@ -1,3 +1,4 @@
 ## Build
-1: `python setup.py bdist_wheel`
-2: `python -m twine upload dist/npVCC2016-x.x.xxxxx.whl`
+1. `poetry build`
+2. `poetry version major` or `poetry version minor` or `poetry version patch`
+3. `poetry publish`
