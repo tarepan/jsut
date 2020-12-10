@@ -50,7 +50,19 @@ class NpVCC2016_spec(waveform.NpVCC2016):
 
     def _preprocess_corpus(self):
         """
-        Preprocess corpus waveform into spectrogram
+        Preprocess corpus waveform into spectrogram.
+        Generated dataset's directory structure is
+
+        /
+            trains/
+                SF1/
+                    specs/
+                        xxx.spec
+                        ...
+                SM1/...
+                TF2/...
+                TM3/...
+            evals/...
         """
         # prepare cache dictionary
         self._data_cache = {"trains": {}, "evals": {}}
@@ -79,6 +91,14 @@ class NpVCC2016_spec(waveform.NpVCC2016):
                 self._data_cache[id.mode][id.speaker][id.serial_num] = spec
 
     def _calc_path_spec(self, path_corpus: Path, id: waveform.Datum_identity) -> Path:
+        """
+        {path_corpus}/
+            {"trains"|"evals"}/
+                {"SF1"|"SM1"|"TF2"|"TM3"}/
+                    specs/
+                        xxx.spec
+        path_corpus is {root}/{self.corpus_name}
+        """
         return path_corpus / id.mode / id.speaker / "specs" / f"{id.serial_num}.spec"
 
     def _load_spec_cache(self, id: waveform.Datum_identity) -> Tensor:

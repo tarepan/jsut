@@ -17,11 +17,12 @@ Alternatively, super().__init__ & additional preprocessing in extended class's _
 
 
 # from typing import Callable, List, Literal, NamedTuple # >= Python3.8
+from .fs import acquire_dataset_fs
 from typing import Callable, List, NamedTuple
 from itertools import chain
 from pathlib import Path
 
-from torch import Tensor
+from torch import Tensor, save
 from torch.utils.data import Dataset
 
 # currently there is no stub in torchaudio [issue](https://github.com/pytorch/audio/issues/615)
@@ -82,6 +83,8 @@ class NpVCC2016(Dataset):  # I failed to understand this error
         download: bool = False,
         speakers: List[Speaker] = ["SF1", "SM1", "TF2", "TM3"],
         transform: Callable[[Tensor], Tensor] = (lambda i: i),
+        zipcache: bool = False,
+        dataset_url: str = "./data/dataset.zip"
     ):
         """
         Prepare (download or access local) corpus, then transform them as dataset with `_process_corpus()`.
@@ -91,10 +94,17 @@ class NpVCC2016(Dataset):  # I failed to understand this error
         self._train = train
         self._trainEvals = "trains" if train else "evals"
         self._transform = transform
+        self._zipcache = zipcache
 
         # corpus/dataset preparation
         self._prepare_corpus(Path(root), train, download, speakers)
         self._preprocess_corpus()
+
+        def gen() -> str:
+            self._preprocess_corpus_for_fs()
+            return str(self._path_corpus)
+
+        self._fs = acquire_dataset_fs(gen, dataset_url)
 
     def _prepare_corpus(
         self, root: Path, train: bool, download: bool, speakers: List[Speaker]
@@ -157,8 +167,35 @@ class NpVCC2016(Dataset):  # I failed to understand this error
         """
         pass
 
+    def _preprocess_corpus_for_fs(self) -> None:
+        """
+        Transform corpus waveform/label into arbitrary data as datasets.
+        In default, raw waveform and labels are yielded (== this function do nothing).
+        """
+        for id in self._corpus_item_identities:
+            waveform, _sr = torchaudio.load(self._calc_path_wav(self._path_corpus, id))  # type: ignore
+            waveform: Tensor = waveform[0, :]
+            save(waveform, self._path_corpus / id.mode / id.speaker / "wavs" / f"{id.serial_num}.wav.pt")
+
     def _calc_path_wav(self, path_corpus: Path, id: Datum_identity) -> Path:
+        """
+        {path_corpus}/
+            {id.mode}/
+                {id.speaker}/
+                    wavs/
+                        xxx.wav
+        """
         return path_corpus / id.mode / id.speaker / "wavs" / f"{id.serial_num}.wav"
+
+    def _calc_path_wav_for_zip_fs(self, id: Datum_identity) -> str:
+        """
+        /
+            {id.mode}/
+                {id.speaker}/
+                    wavs/
+                        xxx.wav
+        """
+        return f"/{id.mode}/{id.speaker}/wavs/{id.serial_num}.wav.pt"
 
     def _load_datum(self, path_corpus: Path, id: Datum_identity) -> Datum_NpVCC2016:
         # no stub problem (see import parts) + torchaudio internal override (It is my guess. It looks like no-interface problem?)
@@ -168,12 +205,24 @@ class NpVCC2016(Dataset):  # I failed to understand this error
         waveform = waveform[0, :]
         return Datum_NpVCC2016(self._transform(waveform), f"{id.mode}-{id.speaker}-{id.serial_num}")  # type: ignore
 
+    def _load_datum_from_fs(self, id: Datum_identity) -> Datum_NpVCC2016:
+        # no stub problem (see import parts) + torchaudio internal override (It is my guess. It looks like no-interface problem?)
+        waveform: Tensor
+        # pylint: disable=no-member
+        with self._fs.open(self._calc_path_wav_for_zip_fs(id), mode="rb") as stream_f:
+            waveform = stream_f.read()
+        return Datum_NpVCC2016(self._transform(waveform), f"{id.mode}-{id.speaker}-{id.serial_num}")  # type: ignore
+
+
     def __getitem__(self, n: int) -> Datum_NpVCC2016:
         """Load the n-th sample from the dataset.
         Args:
             n: The index of the datum to be loaded
         """
-        return self._load_datum(self._path_corpus, self._datum_identities[n])
+        if self._zipcache:
+            return self._load_datum_from_fs(self._datum_identities[n])
+        else:
+            return self._load_datum(self._path_corpus, self._datum_identities[n])
 
     def __len__(self) -> int:
         return len(self._datum_identities)
@@ -184,33 +233,33 @@ if __name__ == "__main__":
     # dataset preparation
     NpVCC2016(".", train=True, download=True)
 
-    # setup
-    dataset_train_full = NpVCC2016(".", train=True, download=False)
-    dataset_train_SF1_SM1 = NpVCC2016(
-        ".", train=True, download=False, speakers=["SF1", "SM1"]
-    )
-    dataset_train_SF1 = NpVCC2016(".", train=True, download=False, speakers=["SF1"])
-    dataset_test_SF1 = NpVCC2016(".", train=False, download=False, speakers=["SF1"])
+    # # setup
+    # dataset_train_full = NpVCC2016(".", train=True, download=False)
+    # dataset_train_SF1_SM1 = NpVCC2016(
+    #     ".", train=True, download=False, speakers=["SF1", "SM1"]
+    # )
+    # dataset_train_SF1 = NpVCC2016(".", train=True, download=False, speakers=["SF1"])
+    # dataset_test_SF1 = NpVCC2016(".", train=False, download=False, speakers=["SF1"])
 
-    # check
-    n_full = len(dataset_train_full)
-    assert (
-        n_full == 81 * 4
-    ), f"dataset_train_full should contains {81*4} datums, but there are {n_full}"
+    # # check
+    # n_full = len(dataset_train_full)
+    # assert (
+    #     n_full == 81 * 4
+    # ), f"dataset_train_full should contains {81*4} datums, but there are {n_full}"
 
-    n_SF1_SM1 = len(dataset_train_SF1_SM1)
-    assert (
-        n_SF1_SM1 == 81 * 2
-    ), f"dataset_train_SF1_SM1 should contains {81*2} datums, but there are {n_SF1_SM1}"
+    # n_SF1_SM1 = len(dataset_train_SF1_SM1)
+    # assert (
+    #     n_SF1_SM1 == 81 * 2
+    # ), f"dataset_train_SF1_SM1 should contains {81*2} datums, but there are {n_SF1_SM1}"
 
-    n_SF1 = len(dataset_train_SF1)
-    assert (
-        n_SF1 == 81 * 1
-    ), f"dataset_train_SF1 should contains {81*1} datums, but there are {n_SF1}"
+    # n_SF1 = len(dataset_train_SF1)
+    # assert (
+    #     n_SF1 == 81 * 1
+    # ), f"dataset_train_SF1 should contains {81*1} datums, but there are {n_SF1}"
 
-    n_t_SF1 = len(dataset_test_SF1)
-    assert (
-        n_t_SF1 == 54 * 1
-    ), f"dataset_test_SF1 should contains {54*1} datums, but there are {n_t_SF1}"
+    # n_t_SF1 = len(dataset_test_SF1)
+    # assert (
+    #     n_t_SF1 == 54 * 1
+    # ), f"dataset_test_SF1 should contains {54*1} datums, but there are {n_t_SF1}"
 
-    print("waveform.py test passed")
+    # print("waveform.py test passed")
