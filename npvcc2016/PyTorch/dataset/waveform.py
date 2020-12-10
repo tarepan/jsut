@@ -22,7 +22,7 @@ from typing import Callable, List, NamedTuple
 from itertools import chain
 from pathlib import Path
 
-from torch import Tensor, save
+from torch import Tensor, save, load
 from torch.utils.data import Dataset
 
 # currently there is no stub in torchaudio [issue](https://github.com/pytorch/audio/issues/615)
@@ -206,11 +206,7 @@ class NpVCC2016(Dataset):  # I failed to understand this error
         return Datum_NpVCC2016(self._transform(waveform), f"{id.mode}-{id.speaker}-{id.serial_num}")  # type: ignore
 
     def _load_datum_from_fs(self, id: Datum_identity) -> Datum_NpVCC2016:
-        # no stub problem (see import parts) + torchaudio internal override (It is my guess. It looks like no-interface problem?)
-        waveform: Tensor
-        # pylint: disable=no-member
-        with self._fs.open(self._calc_path_wav_for_zip_fs(id), mode="rb") as stream_f:
-            waveform = stream_f.read()
+        waveform: Tensor = load(self._fs.open(self._calc_path_wav_for_zip_fs(id), mode="rb"))
         return Datum_NpVCC2016(self._transform(waveform), f"{id.mode}-{id.speaker}-{id.serial_num}")  # type: ignore
 
 
