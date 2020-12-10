@@ -17,7 +17,7 @@ Alternatively, super().__init__ & additional preprocessing in extended class's _
 
 
 # from typing import Callable, List, Literal, NamedTuple # >= Python3.8
-from .fs import acquire_dataset_fs
+import io
 from typing import Callable, List, NamedTuple
 from itertools import chain
 from pathlib import Path
@@ -29,6 +29,7 @@ from torch.utils.data import Dataset
 import torchaudio  # type: ignore
 from torchaudio.datasets.utils import download_url, extract_archive  # type: ignore
 
+from .fs import acquire_dataset_fs
 
 # Speaker = Literal["SF1", "SM1", "TF2", "TM3"] # >=Python3.8
 Speaker = str
@@ -206,9 +207,10 @@ class NpVCC2016(Dataset):  # I failed to understand this error
         return Datum_NpVCC2016(self._transform(waveform), f"{id.mode}-{id.speaker}-{id.serial_num}")  # type: ignore
 
     def _load_datum_from_fs(self, id: Datum_identity) -> Datum_NpVCC2016:
-        waveform: Tensor = load(self._fs.open(self._calc_path_wav_for_zip_fs(id), mode="rb"))
+        with self._fs.open(self._calc_path_wav_for_zip_fs(id), mode="rb") as f:
+            buffer = io.BytesIO(f.read())
+        waveform: Tensor = load(buffer)
         return Datum_NpVCC2016(self._transform(waveform), f"{id.mode}-{id.speaker}-{id.serial_num}")  # type: ignore
-
 
     def __getitem__(self, n: int) -> Datum_NpVCC2016:
         """Load the n-th sample from the dataset.
