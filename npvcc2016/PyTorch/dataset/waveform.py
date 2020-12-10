@@ -208,8 +208,7 @@ class NpVCC2016(Dataset):  # I failed to understand this error
 
     def _load_datum_from_fs(self, id: Datum_identity) -> Datum_NpVCC2016:
         with self._fs.open(self._calc_path_wav_for_zip_fs(id), mode="rb") as f:
-            buffer = io.BytesIO(f.read())
-        waveform: Tensor = load(buffer)
+            waveform: Tensor = load(io.BytesIO(f.read()))
         return Datum_NpVCC2016(self._transform(waveform), f"{id.mode}-{id.speaker}-{id.serial_num}")  # type: ignore
 
     def __getitem__(self, n: int) -> Datum_NpVCC2016:
