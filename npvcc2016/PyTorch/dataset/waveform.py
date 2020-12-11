@@ -85,7 +85,8 @@ class NpVCC2016(Dataset):  # I failed to understand this error
         speakers: List[Speaker] = ["SF1", "SM1", "TF2", "TM3"],
         transform: Callable[[Tensor], Tensor] = (lambda i: i),
         zipcache: bool = False,
-        dataset_url: str = "./data/dataset.zip"
+        dataset_url: str = "./data/dataset.zip",
+        compression: bool = True
     ):
         """
         Prepare (download or access local) corpus, then transform them as dataset with `_process_corpus()`.
@@ -105,7 +106,7 @@ class NpVCC2016(Dataset):  # I failed to understand this error
             self._preprocess_corpus_for_fs()
             return str(self._path_corpus)
 
-        self._fs = acquire_dataset_fs(gen, dataset_url)
+        self._fs = acquire_dataset_fs(gen, dataset_url, compression=compression)
 
     def _prepare_corpus(
         self, root: Path, train: bool, download: bool, speakers: List[Speaker]
