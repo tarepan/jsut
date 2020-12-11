@@ -1,3 +1,5 @@
+from pathlib import Path
+import zipfile
 import shutil
 from typing import Callable, Optional
 
@@ -10,6 +12,7 @@ def acquire_dataset_fs(
     generate_ds: Callable[[], str],
     adress: str = "./data/dataset.zip",
     adress_cache: Optional[str] = "./tmp/data/cache",
+    compression: bool = True
 ) -> ZipFileSystem:
     """
     Acquire a filesystem of dataset stored in the adress.
@@ -34,9 +37,19 @@ def acquire_dataset_fs(
 
         # generate a dataset
         path_dataset_root = generate_ds()
-        path_generated = shutil.make_archive(
-            f"{adress_cache}/ds/temp", "zip", root_dir=path_dataset_root
-        )
+        if compression:
+            # compression: deflate
+            path_generated = shutil.make_archive(
+                f"{adress_cache}/ds/temp", "zip", root_dir=path_dataset_root
+            )
+        else:
+            # compression: no
+            path_generated = Path(f"{adress_cache}/ds/temp.zip")
+            path_zip_root = Path(path_dataset_root)
+            with zipfile.ZipFile(path_generated, mode='w', compression=zipfile.ZIP_STORED) as new_zip:
+                for p in path_zip_root.glob("**/*"):
+                    if p.is_file():
+                        new_zip.write(p, p.relative_to(path_zip_root))
 
         # write (==upload) the dataset
         with open(path_generated, mode="rb") as stream_zip:
