@@ -44,7 +44,7 @@ def acquire_dataset_fs(
             )
         else:
             # compression: no
-            path_generated = Path(f"{adress_cache}/ds/temp.zip")
+            path_generated = f"{adress_cache}/ds/temp.zip"
             path_zip_root = Path(path_dataset_root)
             with zipfile.ZipFile(path_generated, mode='w', compression=zipfile.ZIP_STORED) as new_zip:
                 for p in path_zip_root.glob("**/*"):
