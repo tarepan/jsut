@@ -101,7 +101,8 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
         contents_acquired = try_to_acquire_archive_contents(
             self._path_contents_local,
             self._path_archive_local,
-            dataset_adress
+            dataset_adress,
+            True
         )
         if not contents_acquired:
             # Generate the dataset contents from corpus

@@ -83,9 +83,9 @@ class NpVCC2016:
         """
         # todo: caching
         path_contents = self._path_contents_local
-        acquired = try_to_acquire_archive_contents(path_contents, self._path_archive_local, self._url)
+        acquired = try_to_acquire_archive_contents(path_contents, self._path_archive_local, self._url, self._download)
         if not acquired:
-            raise RuntimeError(f"Specified corpus archive cannot be acquired. Check the link (`{self._url}`).")
+            raise RuntimeError(f"Specified corpus archive cannot be acquired. Check the link (`{self._url}`) or `download` option.")
 
     def get_identities(self) -> List[ItemIdNpVCC2016]:
         """

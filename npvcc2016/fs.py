@@ -22,6 +22,7 @@ def try_to_acquire_archive_contents(
     path_contents_local: Path,
     path_archive_local: Path,
     adress_archive: str,
+    download: bool = False
 ) -> bool:
     """
     Try to acquire the contents of the archive.
@@ -53,7 +54,7 @@ def try_to_acquire_archive_contents(
         if archiveExists and (not archiveIsFile):
             raise RuntimeError(f"Archive ({adress_archive}) should be file or empty, but it is directory.")
 
-        if archiveExists:
+        if archiveExists and download:
             # A dataset file exist, so pull and extract.
             fs.get_file(adress_archive, path_archive_local)
             extract_archive(str(path_archive_local), str(path_contents_local))
