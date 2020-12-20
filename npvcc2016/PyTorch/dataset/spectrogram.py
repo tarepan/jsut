@@ -1,5 +1,6 @@
 from typing import Callable, List, NamedTuple, Optional, Union
 from pathlib import Path
+import io
 
 from torch import Tensor, save, load
 from torch.utils.data.dataset import Dataset
