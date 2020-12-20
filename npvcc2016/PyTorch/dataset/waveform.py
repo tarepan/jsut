@@ -32,7 +32,9 @@ def preprocess_as_wave(corpus: NpVCC2016, dir_dataset: Path) -> None:
         waveform, _sr = load_wav(corpus.get_item_path(id))
         # :: [1, Length] -> [Length,]
         waveform: Tensor = waveform[0, :]
-        save(waveform, get_dataset_wave_path(dir_dataset, id))
+        path_wave = get_dataset_wave_path(dir_dataset, id)
+        path_wave.parent.mkdir(parents=True, exist_ok=True)
+        save(waveform, path_wave)
 
 
 class Datum_NpVCC2016_wave(NamedTuple):

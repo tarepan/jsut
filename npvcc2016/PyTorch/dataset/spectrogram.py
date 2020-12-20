@@ -26,7 +26,9 @@ def preprocess_as_spec(corpus: NpVCC2016, dir_dataset: Path) -> None:
         waveform: Tensor = waveform[0, :]
         # defaults: hop_length = win_length // 2, window_fn = torch.hann_window, power = 2
         spec: Tensor = Spectrogram(254)(waveform)
-        save(spec, get_dataset_spec_path(dir_dataset, id))
+        path_spec = get_dataset_spec_path(dir_dataset, id)
+        path_spec.parent.mkdir(parents=True, exist_ok=True)
+        save(spec, path_spec)
 
 
 class Datum_NpVCC2016_spec_train(NamedTuple):
