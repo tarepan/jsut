@@ -1,57 +1,41 @@
 """
 # Corpus/Dataset guide
-
 Corpus: Distributed data
 Dataset: Processed corpus for specific purpose
 For example, JSUT corpus contains waves, and can be processed into JSUT-spec dataset which is made of spectrograms.
-
-Corpus is acquired then processed into dataset.
-`_prepare_corpus` implements corpus preparation (download/localLoad).
-`_preprocess_corpus` convert prepared corpus into dataset (== preprocessing).
-This preprocess occur only once after Corpus construction.
-
-Basic dataset yield corpus contents as dataset.
-If extend basic dataset class and override `_preprocess_corpus`, it enable extended dataset (e.g. waveform => spectrogram).
-Alternatively, super().__init__ & additional preprocessing in extended class's __init__ work well.
 """
 
-
 # from typing import Callable, List, Literal, NamedTuple # >= Python3.8
+from typing import Callable, List, NamedTuple, Optional
 import io
-from typing import Callable, List, NamedTuple
-from itertools import chain
 from pathlib import Path
 
 from torch import Tensor, save, load
 from torch.utils.data import Dataset
-
 # currently there is no stub in torchaudio [issue](https://github.com/pytorch/audio/issues/615)
-import torchaudio  # type: ignore
-from torchaudio.datasets.utils import download_url, extract_archive  # type: ignore
+from torchaudio import load as load_wav
 
-from .fs import acquire_dataset_fs
-
-# Speaker = Literal["SF1", "SM1", "TF2", "TM3"] # >=Python3.8
-Speaker = str
+from ...fs import try_to_acquire_archive_contents, save_archive, acquire_zip_fs
+from ...corpus import ItemIdNpVCC2016, Mode, NpVCC2016, Speaker
 
 
-class Datum_identity(NamedTuple):
-    # mode: Literal["evals", "trains"] # >= Python3.8
-    mode: str
-    speaker: Speaker
-    serial_num: str
+def get_dataset_wave_path(dir_dataset: Path, id: ItemIdNpVCC2016) -> Path:
+    return dir_dataset / id.mode / id.speaker / "waves" / f"{id.serial_num}.wave.pt"
 
 
-def list_up_wav_names(dir_path: Path) -> List[str]:
+def preprocess_as_wave(corpus: NpVCC2016, dir_dataset: Path) -> None:
     """
-    List up all .wav file names in the specified directory (no deep/recursive search)
+    Transform npVCC2016 corpus contents into waveform Tensor.
+    Before this preprocessing, corpus contents should be deployed.
     """
-    files = filter(lambda path: path.is_file(), dir_path.iterdir())
-    wavs = filter(lambda file: file.suffix == ".wav", files)
-    return list(map(lambda wav: wav.stem, wavs))
+    for id in corpus.get_identities():
+        waveform, _sr = load_wav(corpus.get_item_path(id))
+        # :: [1, Length] -> [Length,]
+        waveform: Tensor = waveform[0, :]
+        save(waveform, get_dataset_wave_path(dir_dataset, id))
 
 
-class Datum_NpVCC2016(NamedTuple):
+class Datum_NpVCC2016_wave(NamedTuple):
     """
     Datum of NpVCC2016 dataset
     """
@@ -60,176 +44,115 @@ class Datum_NpVCC2016(NamedTuple):
     label: str
 
 
-class NpVCC2016(Dataset):  # I failed to understand this error
+class NpVCC2016_wave(Dataset): # I failed to understand this error
     """
     Audio waveform dataset from npVCC2016 non-parallel speech corpus.
     This dataset yield (audio, label).
-    Args:
-        root: Root directory where the dataset's top level directory is found.
-        train: train ? train_dataset : test_dataset
-        download: Whether to download the dataset if it is not found at root path (common in torchAudio datasets).
-        speakers: selection of npVCC2016 speakers for usage
-        transform: transform on load
     """
-
-    ver: str = "1.0.0"
-    corpus_name: str = f"npVCC2016-{ver}"
-    url: str = f"https://github.com/tarepan/npVCC2016Corpus/releases/download/v{ver}/{corpus_name}.zip"
-    speakers = ("SF1", "SM1", "TF2", "TM3")
-
     def __init__(
         self,
-        root: str,  # root could come from parser (e.g. argparse), so root::pathlib.Path could decrease usability
         train: bool,
-        download: bool = False,
         speakers: List[Speaker] = ["SF1", "SM1", "TF2", "TM3"],
         transform: Callable[[Tensor], Tensor] = (lambda i: i),
-        zipcache: bool = False,
-        dataset_url: str = "./data/dataset.zip",
+        download_corpus: bool = False,
+        dir_data: str = "./data/",
+        corpus_adress: Optional[str] = None,
+        dataset_adress: str = "./data/datasets/npVCC2016_wave/archive/dataset.zip",
+        zipfs: bool = False,
         compression: bool = True
     ):
         """
-        Prepare (download or access local) corpus, then transform them as dataset with `_process_corpus()`.
-        In extended class, overriding `_preprocess_corpus` + calling `super().__init__()` enable extension.
+        Args:
+            train: train_dataset if True else validation/test_dataset.
+            speakers: Selected speaker list.
+            transform: Tensor transform on load.
+            download_corpus: Whether download the corpus or not when dataset is not found.
+            dir_data: Directory in which corpus and dataset are saved.
+            corpus_adress: URL/localPath of corpus archive (remote url, like `s3::`, can be used). None use default URL.
+            dataset_adress: URL/localPath of dataset archive (remote url, like `s3::`, can be used).
+            zipfs: Whether use ZipFileSystem dataset or not (have some performance disadvantage).
+            compression: Whether compress dataset or not when new dataset is generated.
         """
-        # store parameters
-        self._train = train
-        self._trainEvals = "trains" if train else "evals"
+        # Design Notes:
+        #   Dataset is often saved in the private adress, so there is no `download_dataset` safety flag.
+        #   `download` is common option in torchAudio datasets.
+
+        # Store parameters.
         self._transform = transform
-        self._zipcache = zipcache
+        self._dir_data = dir_data
+        self._zipfs = zipfs
 
-        # corpus/dataset preparation
-        self._prepare_corpus(Path(root), train, download, speakers)
-        self._preprocess_corpus()
+        # Directory structure:
+        # {dir_data}/
+        #   corpuses/...
+        #   datasets/
+        #     npVCC2016_wave/
+        #       archive/dataset.zip
+        #       contents/{extracted dirs & files}
+        self._corpus = NpVCC2016(download_corpus, corpus_adress, f"{dir_data}/corpuses/npVCC2016/")
+        self._path_archive_local = Path(dir_data)/"datasets"/"npVCC2016_wave"/"archive"/"dataset.zip"
+        self._path_contents_local = Path(dir_data)/"datasets"/"npVCC2016_wave"/"contents"
 
-        def gen() -> str:
-            self._preprocess_corpus_for_fs()
-            return str(self._path_corpus)
-
-        self._fs = acquire_dataset_fs(gen, dataset_url, compression=compression)
-
-    def _prepare_corpus(
-        self, root: Path, train: bool, download: bool, speakers: List[Speaker]
-    ):
-        """
-        Prepare (download or access local) the corpus
-        """
-        archive = root / f"{self.corpus_name}.zip"
-        self._path_corpus = root / self.corpus_name
-
-        # Download the corpus's archive from the url on root, if neither corpusDir nor corpusArchive exist
-        if download & (not self._path_corpus.is_dir()) & (not archive.is_file()):
-            download_url(self.url, str(root))
-        # Extract corpus from archive, if corpusDir do not exists but corpusArchive exists
-        if (not self._path_corpus.is_dir()) & (archive.is_file()):
-            extract_archive(str(archive), str(self._path_corpus))
-        # Check corpus directory existance
-        if not self._path_corpus.is_dir():
-            raise RuntimeError("Corpus directory not found. Check `download` param")
-
-        # Extract corpus item identities
-        ## directory strucutre: /("evals"|"trains")/(Speaker)/wavs/xxxxx.wav
-        # def speaker2dir(speaker: Speaker, trainEvals: Literal["trains", "evals"]): # >=Python3.8
-        def speaker2dir(speaker: Speaker, trainEvals: str):
-            return self._path_corpus / trainEvals / speaker / "wavs"
-
-        self._corpus_item_identities: List[Datum_identity] = []
-        for corpusTE in ("trains", "evals"):
-            self._corpus_item_identities.extend(
-                chain.from_iterable(
-                    map(
-                        lambda speaker: map(
-                            # type inference failure(`literal` as `str`), so no problem
-                            lambda name: Datum_identity(corpusTE, speaker, name),  # type: ignore
-                            list_up_wav_names(speaker2dir(speaker, corpusTE)),  # type: ignore
-                        ),
-                        self.speakers,
-                    )
-                )
-            )
-        # prepare datum identities
-        dataset_trainEvals = "trains" if train else "evals"
-        self._datum_identities = list(
-            chain.from_iterable(
-                map(
-                    lambda speaker: map(
-                        # type inference failure(`literal` as `str`), so no problem
-                        lambda name: Datum_identity(dataset_trainEvals, speaker, name),  # type: ignore
-                        list_up_wav_names(speaker2dir(speaker, dataset_trainEvals)),  # type: ignore
-                    ),
-                    speakers,
-                )
-            )
+        # Prepare the dataset.
+        mode: Mode = "trains" if train else "evals"
+        self._ids: List[ItemIdNpVCC2016] = list(
+            filter(lambda id: id.speaker in speakers,
+                filter(lambda id: id.mode == mode,
+                    self._corpus.get_identities()
+        )))
+        contents_acquired = try_to_acquire_archive_contents(
+            self._path_contents_local,
+            self._path_archive_local,
+            dataset_adress
         )
+        if not contents_acquired:
+            # Generate the dataset contents from corpus
+            print("Dataset archive file is not found. Automatically generating new dataset...")
+            self._generate_dataset_contents()
+            # save dataset archive
+            save_archive(
+                self._path_contents_local,
+                self._path_archive_local,
+                dataset_adress,
+                compression
+            )
+            print("Dataset contents was generated and archive was saved.")
+        self._fs = acquire_zip_fs(dataset_adress)
 
-    def _preprocess_corpus(self) -> None:
+    def _generate_dataset_contents(self) -> None:
         """
-        Transform corpus waveform/label into arbitrary data as datasets.
-        In default, raw waveform and labels are yielded (== this function do nothing).
+        Generate dataset with corpus auto-download and preprocessing.
         """
-        pass
+        self._corpus.get_contents()
+        preprocess_as_wave(self._corpus, self._path_contents_local)
 
-    def _preprocess_corpus_for_fs(self) -> None:
-        """
-        Transform corpus waveform/label into arbitrary data as datasets.
-        In default, raw waveform and labels are yielded (== this function do nothing).
-        """
-        for id in self._corpus_item_identities:
-            waveform, _sr = torchaudio.load(self._calc_path_wav(self._path_corpus, id))  # type: ignore
-            waveform: Tensor = waveform[0, :]
-            save(waveform, self._path_corpus / id.mode / id.speaker / "wavs" / f"{id.serial_num}.wav.pt")
+    def _load_datum(self, id: ItemIdNpVCC2016) -> Datum_NpVCC2016_wave:
+        waveform: Tensor = load(get_dataset_wave_path(self._path_contents_local, id))
+        return Datum_NpVCC2016_wave(self._transform(waveform), f"{id.mode}-{id.speaker}-{id.serial_num}")
 
-    def _calc_path_wav(self, path_corpus: Path, id: Datum_identity) -> Path:
-        """
-        {path_corpus}/
-            {id.mode}/
-                {id.speaker}/
-                    wavs/
-                        xxx.wav
-        """
-        return path_corpus / id.mode / id.speaker / "wavs" / f"{id.serial_num}.wav"
-
-    def _calc_path_wav_for_zip_fs(self, id: Datum_identity) -> str:
-        """
-        /
-            {id.mode}/
-                {id.speaker}/
-                    wavs/
-                        xxx.wav
-        """
-        return f"/{id.mode}/{id.speaker}/wavs/{id.serial_num}.wav.pt"
-
-    def _load_datum(self, path_corpus: Path, id: Datum_identity) -> Datum_NpVCC2016:
-        # no stub problem (see import parts) + torchaudio internal override (It is my guess. It looks like no-interface problem?)
-        waveform: Tensor
-        # pylint: disable=no-member
-        waveform, _sr = torchaudio.load(self._calc_path_wav(path_corpus, id))  # type: ignore
-        waveform = waveform[0, :]
-        return Datum_NpVCC2016(self._transform(waveform), f"{id.mode}-{id.speaker}-{id.serial_num}")  # type: ignore
-
-    def _load_datum_from_fs(self, id: Datum_identity) -> Datum_NpVCC2016:
-        with self._fs.open(self._calc_path_wav_for_zip_fs(id), mode="rb") as f:
+    def _load_datum_from_fs(self, id: ItemIdNpVCC2016) -> Datum_NpVCC2016_wave:
+        with self._fs.open(get_dataset_wave_path(Path("/"), id), mode="rb") as f:
             waveform: Tensor = load(io.BytesIO(f.read()))
-        return Datum_NpVCC2016(self._transform(waveform), f"{id.mode}-{id.speaker}-{id.serial_num}")  # type: ignore
+        return Datum_NpVCC2016_wave(self._transform(waveform), f"{id.mode}-{id.speaker}-{id.serial_num}")
 
-    def __getitem__(self, n: int) -> Datum_NpVCC2016:
+    def __getitem__(self, n: int) -> Datum_NpVCC2016_wave:
         """Load the n-th sample from the dataset.
         Args:
             n: The index of the datum to be loaded
         """
-        if self._zipcache:
-            return self._load_datum_from_fs(self._datum_identities[n])
+        if self._zipfs:
+            return self._load_datum_from_fs(self._ids[n])
         else:
-            return self._load_datum(self._path_corpus, self._datum_identities[n])
+            return self._load_datum(self._ids[n])
 
     def __len__(self) -> int:
-        return len(self._datum_identities)
+        return len(self._ids)
 
 
 if __name__ == "__main__":
     print("This is waveform.py")
     # dataset preparation
-    NpVCC2016(".", train=True, download=True)
+    NpVCC2016_wave(train=True, download_corpus=True)
 
     # # setup
     # dataset_train_full = NpVCC2016(".", train=True, download=False)

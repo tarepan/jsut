@@ -1,20 +1,11 @@
 from typing import Callable, List, Union
 
-# currently there is no stub in pytorch lightning
-import pytorch_lightning as pl  # type: ignore
+import pytorch_lightning as pl
 from torch.tensor import Tensor
 from torch.utils.data import random_split, DataLoader
 
-## start parent module import
-import sys
-from pathlib import Path
-
-dir_PyTorch = Path(__file__).parent.parent.parent.resolve()
-sys.path.append(str(dir_PyTorch))
-from ...dataset.waveform import Speaker  # type: ignore
-from ...dataset.spectrogram import NpVCC2016_spec  # type: ignore
-
-## end
+from ...dataset.waveform import Speaker
+from ...dataset.spectrogram import NpVCC2016_spec
 
 
 class NpVCC2016_spec_DataModule(pl.LightningDataModule):
@@ -26,7 +17,7 @@ class NpVCC2016_spec_DataModule(pl.LightningDataModule):
         self,
         batch_size: int,
         download: bool,
-        dir_root: str = ".",
+        dir_root: str = "./data/",
         speakers: List[Speaker] = ["SF1", "SM1", "TF2", "TM3"],
         transform: Callable[[Tensor], Tensor] = lambda i: i,
     ):
@@ -44,21 +35,17 @@ class NpVCC2016_spec_DataModule(pl.LightningDataModule):
         # self.dims = (1, 28, 28)
 
     def prepare_data(self, *args, **kwargs) -> None:
-        NpVCC2016_spec(self.dir_root, train=True, download=self.download)
+        NpVCC2016_spec(train=True, download_corpus=self.download, dir_data=self.dir_root)
 
     def setup(self, stage: Union[str, None] = None) -> None:
         if stage == "fit" or stage is None:
-            dataset_train = NpVCC2016_spec(
-                self.dir_root, train=True, transform=self.transform
-            )
+            dataset_train = NpVCC2016_spec(train=True, transform=self.transform, dir_data=self.dir_root)
             n_train = len(dataset_train)
             self.data_train, self.data_val = random_split(
                 dataset_train, [n_train - 10, 10]
             )
         if stage == "test" or stage is None:
-            self.data_test = NpVCC2016_spec(
-                self.dir_root, train=False, transform=self.transform
-            )
+            self.data_test = NpVCC2016_spec(train=False, transform=self.transform, dir_data=self.dir_root)
 
     def train_dataloader(self, *args, **kwargs):
         return DataLoader(self.data_train, batch_size=self.n_batch)

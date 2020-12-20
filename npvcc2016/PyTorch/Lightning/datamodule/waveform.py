@@ -5,15 +5,7 @@ import pytorch_lightning as pl  # type: ignore
 from torch.tensor import Tensor
 from torch.utils.data import random_split, DataLoader
 
-## start parent module import
-import sys
-from pathlib import Path
-
-dir_PyTorch = Path(__file__).parent.parent.parent.resolve()
-sys.path.append(str(dir_PyTorch))
-from ...dataset.waveform import NpVCC2016, Speaker  # type: ignore
-
-## end
+from ...dataset.waveform import NpVCC2016_wave, Speaker
 
 
 class NpVCC2016DataModule(pl.LightningDataModule):
@@ -25,7 +17,7 @@ class NpVCC2016DataModule(pl.LightningDataModule):
         self,
         batch_size: int,
         download: bool,
-        dir_root: str = ".",
+        dir_root: str = "./data/",
         speakers: List[Speaker] = ["SF1", "SM1", "TF2", "TM3"],
         transform: Callable[[Tensor], Tensor] = lambda i: i,
     ):
@@ -43,21 +35,17 @@ class NpVCC2016DataModule(pl.LightningDataModule):
         # self.dims = (1, 28, 28)
 
     def prepare_data(self, *args, **kwargs) -> None:
-        NpVCC2016(self.dir_root, train=True, download=self.download)
+        NpVCC2016_wave(train=True, download_corpus=self.download, dir_data=self.dir_root)
 
     def setup(self, stage: Union[str, None] = None) -> None:
         if stage == "fit" or stage is None:
-            dataset_train = NpVCC2016(
-                self.dir_root, train=True, transform=self.transform
-            )
+            dataset_train = NpVCC2016_wave(train=True, transform=self.transform, dir_data=self.dir_root)
             n_train = len(dataset_train)
             self.data_train, self.data_val = random_split(
                 dataset_train, [n_train - 10, 10]
             )
         if stage == "test" or stage is None:
-            self.data_test = NpVCC2016(
-                self.dir_root, train=False, transform=self.transform
-            )
+            self.data_test = NpVCC2016_wave(train=False, transform=self.transform, dir_data=self.dir_root)
 
     def train_dataloader(self, *args, **kwargs):
         return DataLoader(self.data_train, batch_size=self.n_batch)
