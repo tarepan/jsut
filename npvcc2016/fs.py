@@ -56,6 +56,7 @@ def try_to_acquire_archive_contents(
 
         if archiveExists and download:
             # A dataset file exist, so pull and extract.
+            path_archive_local.parent.mkdir(parents=True, exist_ok=True)
             fs.get_file(adress_archive, path_archive_local)
             extract_archive(str(path_archive_local), str(path_contents_local))
             return True
