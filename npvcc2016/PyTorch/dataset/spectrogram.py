@@ -178,6 +178,9 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
         else:
             return self._load_datum(self._ids[n])
 
+    def __len__(self) -> int:
+        return len(self._ids)
+
 
 if __name__ == "__main__":
     print("This is spectrogram.py")
