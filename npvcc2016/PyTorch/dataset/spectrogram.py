@@ -158,14 +158,13 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
             return Datum_NpVCC2016_spec_test(waveform, spec, f"{id.mode}-{id.speaker}-{id.serial_num}")
 
     def _load_datum_from_fs(self, id: ItemIdNpVCC2016) -> Union[Datum_NpVCC2016_spec_train, Datum_NpVCC2016_spec_test]:
-        with self._fs.open(get_dataset_spec_path(Path("/"), id), mode="rb") as f:
-            spec: Tensor = self._transform(load(io.BytesIO(f.read())))
+        with self._fs.open(get_dataset_spec_path(Path("/"), id), mode="rb") as f_s:
+            spec: Tensor = self._transform(load(io.BytesIO(f_s.read())))
         if self._train:
             return Datum_NpVCC2016_spec_train(spec, f"{id.mode}-{id.speaker}-{id.serial_num}")
         else:
-            with self._fs.open(get_dataset_wave_path(Path("/"), id), mode="rb") as f:
-                spec: Tensor = self._transform(load(io.BytesIO(f.read())))
-                waveform: Tensor = load(io.BytesIO(f.read()))
+            with self._fs.open(get_dataset_wave_path(Path("/"), id), mode="rb") as f_w:
+                waveform: Tensor = load(io.BytesIO(f_w.read()))
             return Datum_NpVCC2016_spec_test(waveform, spec, f"{id.mode}-{id.speaker}-{id.serial_num}")
 
     def __getitem__(self, n: int) -> Union[Datum_NpVCC2016_spec_train, Datum_NpVCC2016_spec_test]:
