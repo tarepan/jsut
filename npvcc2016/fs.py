@@ -80,6 +80,7 @@ def save_archive(path_contents: Path, path_archive_local: Path, adress_archive: 
         shutil.make_archive(str(path_archive_local.with_suffix("")), "zip", root_dir=path_contents)
     else:
         # zip without compression
+        path_archive_local.parent.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(path_archive_local, mode='w', compression=zipfile.ZIP_STORED) as new_zip:
             for p in path_contents.glob("**/*"):
                 if p.is_file():
