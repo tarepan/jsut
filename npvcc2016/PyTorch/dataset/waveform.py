@@ -7,7 +7,6 @@ For example, JSUT corpus contains waves, and can be processed into JSUT-spec dat
 
 # from typing import Callable, List, Literal, NamedTuple # >= Python3.8
 from typing import Callable, List, NamedTuple, Optional
-import io
 from pathlib import Path
 
 from torch import Tensor, save, load
@@ -15,7 +14,7 @@ from torch.utils.data import Dataset
 # currently there is no stub in torchaudio [issue](https://github.com/pytorch/audio/issues/615)
 from torchaudio import load as load_wav
 
-from ...fs import try_to_acquire_archive_contents, save_archive, acquire_zip_fs
+from ...fs import hash_args, try_to_acquire_archive_contents, save_archive
 from ...corpus import ItemIdNpVCC2016, Mode, NpVCC2016, Speaker
 
 
@@ -55,23 +54,19 @@ class NpVCC2016_wave(Dataset): # I failed to understand this error
         self,
         train: bool,
         speakers: List[Speaker] = ["SF1", "SM1", "TF2", "TM3"],
-        transform: Callable[[Tensor], Tensor] = (lambda i: i),
         download_corpus: bool = False,
-        dir_data: str = "./data/",
         corpus_adress: Optional[str] = None,
-        dataset_adress: str = "./data/datasets/npVCC2016_wave/archive/dataset.zip",
+        dataset_adress: Optional[str] = None,
+        transform: Callable[[Tensor], Tensor] = (lambda i: i),
     ):
         """
         Args:
             train: train_dataset if True else validation/test_dataset.
             speakers: Selected speaker list.
-            transform: Tensor transform on load.
             download_corpus: Whether download the corpus or not when dataset is not found.
-            dir_data: Directory in which corpus and dataset are saved.
-            corpus_adress: URL/localPath of corpus archive (remote url, like `s3::`, can be used). None use default URL.
-            dataset_adress: URL/localPath of dataset archive (remote url, like `s3::`, can be used).
-            zipfs: Whether use ZipFileSystem dataset or not (have some performance disadvantage).
-            compression: Whether compress dataset or not when new dataset is generated.
+            corpus_adress: URL/localPath of corpus archive (e.g. `s3::` can be used). None use default URL.
+            dataset_adress: URL/localPath of dataset archive (e.g. `s3::` can be used). None use default local path.
+            transform: Tensor transform on load.
         """
         # Design Notes:
         #   Dataset is often saved in the private adress, so there is no `download_dataset` safety flag.
@@ -79,37 +74,27 @@ class NpVCC2016_wave(Dataset): # I failed to understand this error
 
         # Store parameters.
         self._transform = transform
-        self._dir_data = dir_data
 
-        # Directory structure:
-        # {dir_data}/
-        #   corpuses/...
-        #   datasets/
-        #     npVCC2016_wave/
-        #       archive/dataset.zip
-        #       contents/{extracted dirs & files}
-        self._corpus = NpVCC2016(download_corpus, corpus_adress, f"{dir_data}/corpuses/npVCC2016/")
-        self._path_archive_local = Path(dir_data)/"datasets"/"npVCC2016_wave"/"archive"/"dataset.zip"
-        self._path_contents_local = Path(dir_data)/"datasets"/"npVCC2016_wave"/"contents"
+        self._corpus = NpVCC2016(download_corpus, corpus_adress)
+        dirname = hash_args(train, speakers, download_corpus, corpus_adress, dataset_adress)
+        self._path_contents_local = Path(".")/"tmp"/"npVCC2016_wave"/"contents"/dirname
+        dataset_adress = dataset_adress if dataset_adress else str(Path(".")/"tmp"/"npVCC2016_wave"/"archive"/dirname)
 
-        # Prepare the dataset.
+        # Prepare data identities.
         mode: Mode = "trains" if train else "evals"
         self._ids: List[ItemIdNpVCC2016] = list(
             filter(lambda id: id.speaker in speakers,
                 filter(lambda id: id.mode == mode,
                     self._corpus.get_identities()
         )))
-        contents_acquired = try_to_acquire_archive_contents(
-            self._path_contents_local,
-            self._path_archive_local,
-            dataset_adress,
-            True
-        )
+
+        # Deploy dataset contents.
+        contents_acquired = try_to_acquire_archive_contents(self._path_contents_local, dataset_adress, True)
         if not contents_acquired:
             # Generate the dataset contents from corpus
             print("Dataset archive file is not found. Automatically generating new dataset...")
             self._generate_dataset_contents()
-            save_archive(self._path_contents_local, self._path_archive_local, dataset_adress)
+            save_archive(self._path_contents_local, dataset_adress)
             print("Dataset contents was generated and archive was saved.")
 
     def _generate_dataset_contents(self) -> None:

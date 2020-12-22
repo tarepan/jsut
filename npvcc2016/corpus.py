@@ -27,9 +27,8 @@ class ItemIdNpVCC2016(NamedTuple):
 class NpVCC2016:
     def __init__(
         self,
-        download : bool = False,
-        url: Optional[str] = None,
-        dir_corpus_local: str = "./data/corpuses/npVCC2016/"
+        download: bool = False,
+        adress_archive: Optional[str] = None
     ) -> None:
         """
         Wrapper of `npVCC2016` corpus.
@@ -44,17 +43,17 @@ class NpVCC2016:
 
         Args:
         download: Download corpus when there is no archive in local.
-        url: Corpus archive url (Various url type (e.g. S3, GCP) is accepted through `fsspec` library).
-        dir_corpus_local: Corpus directory.
+        adress_archive: Corpus archive adress (Various url type (e.g. S3, GCP) is accepted through `fsspec` library).
         """
         ver: str = "1.0.0"
         corpus_name: str = f"npVCC2016-{ver}"
 
         default_url = f"https://github.com/tarepan/npVCC2016Corpus/releases/download/v{ver}/{corpus_name}.zip"
-        self._url = url if url else default_url
+        self._url = adress_archive if adress_archive else default_url
         self._download = download
         self._fs: fsspec.AbstractFileSystem = fsspec.filesystem(get_protocol(self._url))
 
+        dir_corpus_local: str = "./data/corpuses/npVCC2016/"
         self._path_archive_local = Path(dir_corpus_local) / "archive" / f"{corpus_name}.zip"
         self._path_contents_local = Path(dir_corpus_local) / "contents"
 
@@ -83,7 +82,7 @@ class NpVCC2016:
         """
         # todo: caching
         path_contents = self._path_contents_local
-        acquired = try_to_acquire_archive_contents(path_contents, self._path_archive_local, self._url, self._download)
+        acquired = try_to_acquire_archive_contents(path_contents, self._url, self._download)
         if not acquired:
             raise RuntimeError(f"Specified corpus archive cannot be acquired. Check the link (`{self._url}`) or `download` option.")
 

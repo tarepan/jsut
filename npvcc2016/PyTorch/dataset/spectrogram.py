@@ -1,6 +1,5 @@
 from typing import Callable, List, NamedTuple, Optional, Union
 from pathlib import Path
-import io
 
 from torch import Tensor, save, load
 from torch.utils.data.dataset import Dataset
@@ -10,7 +9,7 @@ from torchaudio.transforms import Spectrogram  # type: ignore
 
 from .waveform import get_dataset_wave_path, preprocess_as_wave
 from ...corpus import ItemIdNpVCC2016, Mode, NpVCC2016, Speaker
-from ...fs import acquire_zip_fs, save_archive, try_to_acquire_archive_contents
+from ...fs import hash_args, save_archive, try_to_acquire_archive_contents
 
 
 def get_dataset_spec_path(dir_dataset: Path, id: ItemIdNpVCC2016) -> Path:
@@ -52,22 +51,19 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
         self,
         train: bool,
         speakers: List[Speaker] = ["SF1", "SM1", "TF2", "TM3"],
-        transform: Callable[[Tensor], Tensor] = (lambda i: i),
         download_corpus: bool = False,
-        dir_data: str = "./data/",
         corpus_adress: Optional[str] = None,
         dataset_adress: str = "./data/datasets/npVCC2016_spec/archive/dataset.zip",
-        cache: bool = False
+        transform: Callable[[Tensor], Tensor] = (lambda i: i),
     ):
         """
         Args:
             train: train_dataset if True else validation/test_dataset.
             speakers: Selected speaker list.
-            transform: Tensor transform on load.
             download_corpus: Whether download the corpus or not when dataset is not found.
-            dir_data: Directory in which corpus and dataset are saved.
             corpus_adress: URL/localPath of corpus archive (remote url, like `s3::`, can be used). None use default URL.
             dataset_adress: URL/localPath of dataset archive (remote url, like `s3::`, can be used).
+            transform: Tensor transform on load.
         """
         # Design Notes:
         #   Dataset is often saved in the private adress, so there is no `download_dataset` safety flag.
@@ -76,37 +72,26 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
         # Store parameters.
         self._train = train
         self._transform = transform
-        self._cache = cache
 
-        # Directory structure:
-        # {dir_data}/
-        #   corpuses/...
-        #   datasets/
-        #     npVCC2016_spec/
-        #       archive/dataset.zip
-        #       contents/{extracted dirs & files}
-        self._corpus = NpVCC2016(download_corpus, corpus_adress, f"{dir_data}/corpuses/npVCC2016/")
-        self._path_archive_local = Path(dir_data)/"datasets"/"npVCC2016_spec"/"archive"/"dataset.zip"
-        self._path_contents_local = Path(dir_data)/"datasets"/"npVCC2016_spec"/"contents"
+        self._corpus = NpVCC2016(download_corpus, corpus_adress)
+        dirname = hash_args(train, speakers, download_corpus, corpus_adress, dataset_adress)
+        self._path_contents_local = Path(".")/"tmp"/"npVCC2016_spec"/dirname
 
-        # Prepare the dataset.
+        # Prepare data identities.
         mode: Mode = "trains" if train else "evals"
         self._ids: List[ItemIdNpVCC2016] = list(
             filter(lambda id: id.speaker in speakers,
                 filter(lambda id: id.mode == mode,
                     self._corpus.get_identities()
         )))
-        contents_acquired = try_to_acquire_archive_contents(
-            self._path_contents_local,
-            self._path_archive_local,
-            dataset_adress,
-            True
-        )
+
+        # Deploy dataset contents.
+        contents_acquired = try_to_acquire_archive_contents(self._path_contents_local, dataset_adress, True)
         if not contents_acquired:
             # Generate the dataset contents from corpus
             print("Dataset archive file is not found. Automatically generating new dataset...")
             self._generate_dataset_contents()
-            save_archive(self._path_contents_local, self._path_archive_local, dataset_adress)
+            save_archive(self._path_contents_local, dataset_adress)
             print("Dataset contents was generated and archive was saved.")
 
         # todo: cache
