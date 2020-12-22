@@ -1,21 +1,9 @@
 from pathlib import Path
-import zipfile
 import shutil
 
 import fsspec
 from fsspec.utils import get_protocol
-from fsspec.implementations.zip import ZipFileSystem
 from torchaudio.datasets.utils import extract_archive
-
-
-def acquire_zip_fs(adress: str, adress_local_cache: str = "./tmp/data/cache") -> ZipFileSystem:
-    """
-    Acquire ZIP filesystem of specified adress
-    """
-    # Design Notes:
-    #   Cache adress is controlable for manual deletion and name collision avoidance.
-    fs_adress = f"simplecache::{adress}"
-    return ZipFileSystem(fs_adress, target_options={"simplecache": {"cache_storage": adress_local_cache}})
 
 
 def try_to_acquire_archive_contents(
@@ -65,7 +53,7 @@ def try_to_acquire_archive_contents(
             return False
 
 
-def save_archive(path_contents: Path, path_archive_local: Path, adress_archive: str, compression: bool = True) -> None:
+def save_archive(path_contents: Path, path_archive_local: Path, adress_archive: str) -> None:
     """
     Save contents as ZIP archive.
 
@@ -73,18 +61,9 @@ def save_archive(path_contents: Path, path_archive_local: Path, adress_archive: 
         path_contents: Contents root directory path
         path_archive_local: Local path of newly generated archive file
         adress_archive: Saved adress
-        compression: With-compression if True else no-compression
     """
-    if compression:
-        # zip with deflate compression
-        shutil.make_archive(str(path_archive_local.with_suffix("")), "zip", root_dir=path_contents)
-    else:
-        # zip without compression
-        path_archive_local.parent.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(path_archive_local, mode='w', compression=zipfile.ZIP_STORED) as new_zip:
-            for p in path_contents.glob("**/*"):
-                if p.is_file():
-                    new_zip.write(p, p.relative_to(path_contents))
+    # zip with deflate compression
+    shutil.make_archive(str(path_archive_local.with_suffix("")), "zip", root_dir=path_contents)
 
     # write (==upload) the archive
     with open(path_archive_local, mode="rb") as stream_zip:

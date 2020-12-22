@@ -57,8 +57,6 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
         dir_data: str = "./data/",
         corpus_adress: Optional[str] = None,
         dataset_adress: str = "./data/datasets/npVCC2016_spec/archive/dataset.zip",
-        zipfs: bool = False,
-        compression: bool = True,
         cache: bool = False
     ):
         """
@@ -70,8 +68,6 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
             dir_data: Directory in which corpus and dataset are saved.
             corpus_adress: URL/localPath of corpus archive (remote url, like `s3::`, can be used). None use default URL.
             dataset_adress: URL/localPath of dataset archive (remote url, like `s3::`, can be used).
-            zipfs: Whether use ZipFileSystem dataset or not (have some performance disadvantage).
-            compression: Whether compress dataset or not when new dataset is generated.
         """
         # Design Notes:
         #   Dataset is often saved in the private adress, so there is no `download_dataset` safety flag.
@@ -80,7 +76,6 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
         # Store parameters.
         self._train = train
         self._transform = transform
-        self._zipfs = zipfs
         self._cache = cache
 
         # Directory structure:
@@ -111,17 +106,9 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
             # Generate the dataset contents from corpus
             print("Dataset archive file is not found. Automatically generating new dataset...")
             self._generate_dataset_contents()
-            # save dataset archive
-            save_archive(
-                self._path_contents_local,
-                self._path_archive_local,
-                dataset_adress,
-                compression
-            )
+            save_archive(self._path_contents_local, self._path_archive_local, dataset_adress)
             print("Dataset contents was generated and archive was saved.")
-        self._fs = acquire_zip_fs(dataset_adress)
 
-        # todo: preprocessing
         # todo: cache
             # if self._cache:
             #     self._data_cache[id.mode][id.speaker][id.serial_num] = spec
@@ -157,25 +144,12 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
             waveform: Tensor = load(get_dataset_wave_path(self._path_contents_local, id))
             return Datum_NpVCC2016_spec_test(waveform, spec, f"{id.mode}-{id.speaker}-{id.serial_num}")
 
-    def _load_datum_from_fs(self, id: ItemIdNpVCC2016) -> Union[Datum_NpVCC2016_spec_train, Datum_NpVCC2016_spec_test]:
-        with self._fs.open(get_dataset_spec_path(Path("/"), id), mode="rb") as f_s:
-            spec: Tensor = self._transform(load(io.BytesIO(f_s.read())))
-        if self._train:
-            return Datum_NpVCC2016_spec_train(spec, f"{id.mode}-{id.speaker}-{id.serial_num}")
-        else:
-            with self._fs.open(get_dataset_wave_path(Path("/"), id), mode="rb") as f_w:
-                waveform: Tensor = load(io.BytesIO(f_w.read()))
-            return Datum_NpVCC2016_spec_test(waveform, spec, f"{id.mode}-{id.speaker}-{id.serial_num}")
-
     def __getitem__(self, n: int) -> Union[Datum_NpVCC2016_spec_train, Datum_NpVCC2016_spec_test]:
         """Load the n-th sample from the dataset.
         Args:
             n : The index of the datum to be loaded
         """
-        if self._zipfs:
-            return self._load_datum_from_fs(self._ids[n])
-        else:
-            return self._load_datum(self._ids[n])
+        return self._load_datum(self._ids[n])
 
     def __len__(self) -> int:
         return len(self._ids)

@@ -22,7 +22,6 @@ class NpVCC2016_spec_DataModule(pl.LightningDataModule):
         transform: Callable[[Tensor], Tensor] = lambda i: i,
         corpus_adress: Optional[str] = None,
         dataset_adress: str = "./data/datasets/npVCC2016_spec/archive/dataset.zip",
-        zipfs: bool = False,
     ):
         super().__init__()
         self.n_batch = batch_size
@@ -32,13 +31,6 @@ class NpVCC2016_spec_DataModule(pl.LightningDataModule):
         self.transform = transform
         self.corpus_adress = corpus_adress
         self.dataset_adress = dataset_adress
-        self.zipfs = zipfs
-        # transforms.Compose([transforms.ToTensor()])
-
-        # self.dims is returned when you call dm.size()
-        # Setting default dims here because we know them.
-        # Could optionally be assigned dynamically in dm.setup()
-        # self.dims = (1, 28, 28)
 
     def prepare_data(self, *args, **kwargs) -> None:
         pass
@@ -53,8 +45,6 @@ class NpVCC2016_spec_DataModule(pl.LightningDataModule):
                 dir_data=self.dir_root,
                 corpus_adress=self.corpus_adress,
                 dataset_adress=self.dataset_adress,
-                zipfs=self.zipfs,
-                compression=False,
                 cache=False
             )
             n_train = len(dataset_train)
@@ -70,8 +60,6 @@ class NpVCC2016_spec_DataModule(pl.LightningDataModule):
                 dir_data=self.dir_root,
                 corpus_adress=self.corpus_adress,
                 dataset_adress=self.dataset_adress,
-                zipfs=self.zipfs,
-                compression=False,
                 cache=False
             )
 

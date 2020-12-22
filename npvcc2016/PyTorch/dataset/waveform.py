@@ -60,8 +60,6 @@ class NpVCC2016_wave(Dataset): # I failed to understand this error
         dir_data: str = "./data/",
         corpus_adress: Optional[str] = None,
         dataset_adress: str = "./data/datasets/npVCC2016_wave/archive/dataset.zip",
-        zipfs: bool = False,
-        compression: bool = True
     ):
         """
         Args:
@@ -82,7 +80,6 @@ class NpVCC2016_wave(Dataset): # I failed to understand this error
         # Store parameters.
         self._transform = transform
         self._dir_data = dir_data
-        self._zipfs = zipfs
 
         # Directory structure:
         # {dir_data}/
@@ -112,15 +109,8 @@ class NpVCC2016_wave(Dataset): # I failed to understand this error
             # Generate the dataset contents from corpus
             print("Dataset archive file is not found. Automatically generating new dataset...")
             self._generate_dataset_contents()
-            # save dataset archive
-            save_archive(
-                self._path_contents_local,
-                self._path_archive_local,
-                dataset_adress,
-                compression
-            )
+            save_archive(self._path_contents_local, self._path_archive_local, dataset_adress)
             print("Dataset contents was generated and archive was saved.")
-        self._fs = acquire_zip_fs(dataset_adress)
 
     def _generate_dataset_contents(self) -> None:
         """
@@ -133,20 +123,12 @@ class NpVCC2016_wave(Dataset): # I failed to understand this error
         waveform: Tensor = load(get_dataset_wave_path(self._path_contents_local, id))
         return Datum_NpVCC2016_wave(self._transform(waveform), f"{id.mode}-{id.speaker}-{id.serial_num}")
 
-    def _load_datum_from_fs(self, id: ItemIdNpVCC2016) -> Datum_NpVCC2016_wave:
-        with self._fs.open(get_dataset_wave_path(Path("/"), id), mode="rb") as f:
-            waveform: Tensor = load(io.BytesIO(f.read()))
-        return Datum_NpVCC2016_wave(self._transform(waveform), f"{id.mode}-{id.speaker}-{id.serial_num}")
-
     def __getitem__(self, n: int) -> Datum_NpVCC2016_wave:
         """Load the n-th sample from the dataset.
         Args:
             n: The index of the datum to be loaded
         """
-        if self._zipfs:
-            return self._load_datum_from_fs(self._ids[n])
-        else:
-            return self._load_datum(self._ids[n])
+        return self._load_datum(self._ids[n])
 
     def __len__(self) -> int:
         return len(self._ids)
