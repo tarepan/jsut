@@ -17,16 +17,14 @@ class NpVCC2016_spec_DataModule(pl.LightningDataModule):
         self,
         batch_size: int,
         download: bool,
-        dir_root: str = "./data/",
         speakers: List[Speaker] = ["SF1", "SM1", "TF2", "TM3"],
         transform: Callable[[Tensor], Tensor] = lambda i: i,
         corpus_adress: Optional[str] = None,
-        dataset_adress: str = "./data/datasets/npVCC2016_spec/archive/dataset.zip",
+        dataset_adress: Optional[str] = None,
     ):
         super().__init__()
         self.n_batch = batch_size
         self.download = download
-        self.dir_root = dir_root
         self.speakers = speakers
         self.transform = transform
         self.corpus_adress = corpus_adress
