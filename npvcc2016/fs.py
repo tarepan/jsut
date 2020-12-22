@@ -1,5 +1,4 @@
 import hashlib
-from io import BytesIO
 from pathlib import Path
 import shutil
 from tempfile import NamedTemporaryFile, TemporaryDirectory
