@@ -73,7 +73,7 @@ class NpVCC2016:
         else:
             if self._download:
                 path_archive.parent.mkdir(parents=True, exist_ok=True)
-                self._fs.get_file(self._url, path_archive)
+                self._fs.get_file(self._url, str(path_archive))
             else:
                 raise RuntimeError("Try to get_archive, but `download` is disabled.")
 
