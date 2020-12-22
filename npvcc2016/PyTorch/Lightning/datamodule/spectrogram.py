@@ -40,12 +40,10 @@ class NpVCC2016_spec_DataModule(pl.LightningDataModule):
             dataset_train = NpVCC2016_spec(
                 train=True,
                 speakers=self.speakers,
-                transform=self.transform,
                 download_corpus=self.download,
-                dir_data=self.dir_root,
                 corpus_adress=self.corpus_adress,
                 dataset_adress=self.dataset_adress,
-                cache=False
+                transform=self.transform,
             )
             n_train = len(dataset_train)
             self.data_train, self.data_val = random_split(
@@ -55,12 +53,10 @@ class NpVCC2016_spec_DataModule(pl.LightningDataModule):
             self.data_test = NpVCC2016_spec(
                 train=False,
                 speakers=self.speakers,
-                transform=self.transform,
                 download_corpus=self.download,
-                dir_data=self.dir_root,
                 corpus_adress=self.corpus_adress,
                 dataset_adress=self.dataset_adress,
-                cache=False
+                transform=self.transform,
             )
 
     def train_dataloader(self, *args, **kwargs):

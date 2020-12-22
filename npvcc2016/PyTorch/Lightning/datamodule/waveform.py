@@ -17,35 +17,27 @@ class NpVCC2016DataModule(pl.LightningDataModule):
         self,
         batch_size: int,
         download: bool,
-        dir_root: str = "./data/",
         speakers: List[Speaker] = ["SF1", "SM1", "TF2", "TM3"],
         transform: Callable[[Tensor], Tensor] = lambda i: i,
     ):
         super().__init__()
         self.n_batch = batch_size
         self.download = download
-        self.dir_root = dir_root
         self.speakers = speakers
         self.transform = transform
-        # transforms.Compose([transforms.ToTensor()])
-
-        # self.dims is returned when you call dm.size()
-        # Setting default dims here because we know them.
-        # Could optionally be assigned dynamically in dm.setup()
-        # self.dims = (1, 28, 28)
 
     def prepare_data(self, *args, **kwargs) -> None:
-        NpVCC2016_wave(train=True, download_corpus=self.download, dir_data=self.dir_root)
+        pass
 
     def setup(self, stage: Union[str, None] = None) -> None:
         if stage == "fit" or stage is None:
-            dataset_train = NpVCC2016_wave(train=True, transform=self.transform, dir_data=self.dir_root)
+            dataset_train = NpVCC2016_wave(train=True, transform=self.transform)
             n_train = len(dataset_train)
             self.data_train, self.data_val = random_split(
                 dataset_train, [n_train - 10, 10]
             )
         if stage == "test" or stage is None:
-            self.data_test = NpVCC2016_wave(train=False, transform=self.transform, dir_data=self.dir_root)
+            self.data_test = NpVCC2016_wave(train=False, transform=self.transform)
 
     def train_dataloader(self, *args, **kwargs):
         return DataLoader(self.data_train, batch_size=self.n_batch)
