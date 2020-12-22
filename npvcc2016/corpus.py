@@ -72,6 +72,7 @@ class NpVCC2016:
                 raise RuntimeError(f"{str(path_archive)} should be archive file or empty, but it is directory.")
         else:
             if self._download:
+                path_archive.parent.mkdir(parents=True, exist_ok=True)
                 self._fs.get_file(self._url, path_archive)
             else:
                 raise RuntimeError("Try to get_archive, but `download` is disabled.")
