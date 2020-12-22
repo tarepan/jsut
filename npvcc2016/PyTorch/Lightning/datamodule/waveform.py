@@ -21,6 +21,7 @@ class NpVCC2016_wave_DataModule(pl.LightningDataModule):
         transform: Callable[[Tensor], Tensor] = lambda i: i,
         corpus_adress: Optional[str] = None,
         dataset_adress: Optional[str] = None,
+        resample_sr: Optional[int] = None,
     ):
         super().__init__()
         self.n_batch = batch_size
@@ -29,7 +30,7 @@ class NpVCC2016_wave_DataModule(pl.LightningDataModule):
         self.transform = transform
         self.corpus_adress = corpus_adress
         self.dataset_adress = dataset_adress
-
+        self._resample_sr = resample_sr
 
     def prepare_data(self, *args, **kwargs) -> None:
         pass

@@ -13,6 +13,7 @@ from torch import Tensor, save, load
 from torch.utils.data import Dataset
 # currently there is no stub in torchaudio [issue](https://github.com/pytorch/audio/issues/615)
 from torchaudio import load as load_wav
+from torchaudio.transforms import Resample
 
 from ...fs import hash_args, try_to_acquire_archive_contents, save_archive
 from ...corpus import ItemIdNpVCC2016, Mode, NpVCC2016, Speaker
@@ -22,13 +23,18 @@ def get_dataset_wave_path(dir_dataset: Path, id: ItemIdNpVCC2016) -> Path:
     return dir_dataset / id.mode / id.speaker / "waves" / f"{id.serial_num}.wave.pt"
 
 
-def preprocess_as_wave(corpus: NpVCC2016, dir_dataset: Path) -> None:
+def preprocess_as_wave(corpus: NpVCC2016, dir_dataset: Path, new_sr: Optional[int] = None) -> None:
     """
     Transform npVCC2016 corpus contents into waveform Tensor.
     Before this preprocessing, corpus contents should be deployed.
+
+    Args:
+        new_sr: If specified, resample with specified sampling rate.
     """
     for id in corpus.get_identities():
-        waveform, _sr = load_wav(corpus.get_item_path(id))
+        waveform, _sr_orig = load_wav(corpus.get_item_path(id))
+        if new_sr is not None:
+            waveform = Resample(_sr_orig, new_sr)(waveform)
         # :: [1, Length] -> [Length,]
         waveform: Tensor = waveform[0, :]
         path_wave = get_dataset_wave_path(dir_dataset, id)
@@ -57,6 +63,7 @@ class NpVCC2016_wave(Dataset): # I failed to understand this error
         download_corpus: bool = False,
         corpus_adress: Optional[str] = None,
         dataset_adress: Optional[str] = None,
+        resample_sr: Optional[int] = None,
         transform: Callable[[Tensor], Tensor] = (lambda i: i),
     ):
         """
@@ -66,6 +73,7 @@ class NpVCC2016_wave(Dataset): # I failed to understand this error
             download_corpus: Whether download the corpus or not when dataset is not found.
             corpus_adress: URL/localPath of corpus archive (e.g. `s3::` can be used). None use default URL.
             dataset_adress: URL/localPath of dataset archive (e.g. `s3::` can be used). None use default local path.
+            resample_sr: If specified, resample with specified sampling rate.
             transform: Tensor transform on load.
         """
         # Design Notes:
@@ -73,10 +81,11 @@ class NpVCC2016_wave(Dataset): # I failed to understand this error
         #   `download` is common option in torchAudio datasets.
 
         # Store parameters.
+        self._resample_sr = resample_sr
         self._transform = transform
 
         self._corpus = NpVCC2016(download_corpus, corpus_adress)
-        dirname = hash_args(train, speakers, download_corpus, corpus_adress, dataset_adress)
+        dirname = hash_args(train, speakers, download_corpus, corpus_adress, dataset_adress, resample_sr)
         self._path_contents_local = Path(".")/"tmp"/"npVCC2016_wave"/"contents"/dirname
         dataset_adress = dataset_adress if dataset_adress else str(Path(".")/"tmp"/"npVCC2016_wave"/"archive"/f"{dirname}.zip")
 
@@ -102,7 +111,7 @@ class NpVCC2016_wave(Dataset): # I failed to understand this error
         Generate dataset with corpus auto-download and preprocessing.
         """
         self._corpus.get_contents()
-        preprocess_as_wave(self._corpus, self._path_contents_local)
+        preprocess_as_wave(self._corpus, self._path_contents_local, self._resample_sr)
 
     def _load_datum(self, id: ItemIdNpVCC2016) -> Datum_NpVCC2016_wave:
         waveform: Tensor = load(get_dataset_wave_path(self._path_contents_local, id))
