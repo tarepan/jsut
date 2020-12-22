@@ -78,7 +78,7 @@ class NpVCC2016_wave(Dataset): # I failed to understand this error
         self._corpus = NpVCC2016(download_corpus, corpus_adress)
         dirname = hash_args(train, speakers, download_corpus, corpus_adress, dataset_adress)
         self._path_contents_local = Path(".")/"tmp"/"npVCC2016_wave"/"contents"/dirname
-        dataset_adress = dataset_adress if dataset_adress else str(Path(".")/"tmp"/"npVCC2016_wave"/"archive"/dirname)
+        dataset_adress = dataset_adress if dataset_adress else str(Path(".")/"tmp"/"npVCC2016_wave"/"archive"/f"{dirname}.zip")
 
         # Prepare data identities.
         mode: Mode = "trains" if train else "evals"

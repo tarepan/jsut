@@ -53,7 +53,7 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
         speakers: List[Speaker] = ["SF1", "SM1", "TF2", "TM3"],
         download_corpus: bool = False,
         corpus_adress: Optional[str] = None,
-        dataset_adress: str = "./data/datasets/npVCC2016_spec/archive/dataset.zip",
+        dataset_adress: Optional[str] = None,
         transform: Callable[[Tensor], Tensor] = (lambda i: i),
     ):
         """
@@ -61,8 +61,8 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
             train: train_dataset if True else validation/test_dataset.
             speakers: Selected speaker list.
             download_corpus: Whether download the corpus or not when dataset is not found.
-            corpus_adress: URL/localPath of corpus archive (remote url, like `s3::`, can be used). None use default URL.
-            dataset_adress: URL/localPath of dataset archive (remote url, like `s3::`, can be used).
+            corpus_adress: URL/localPath of corpus archive (e.g. `s3::` can be used). None use default URL.
+            dataset_adress: URL/localPath of dataset archive (e.g. `s3::` can be used). None use default local path.
             transform: Tensor transform on load.
         """
         # Design Notes:
@@ -75,7 +75,8 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
 
         self._corpus = NpVCC2016(download_corpus, corpus_adress)
         dirname = hash_args(train, speakers, download_corpus, corpus_adress, dataset_adress)
-        self._path_contents_local = Path(".")/"tmp"/"npVCC2016_spec"/dirname
+        self._path_contents_local = Path(".")/"tmp"/"npVCC2016_spec"/"contents"/dirname
+        dataset_adress = dataset_adress if dataset_adress else str(Path(".")/"tmp"/"npVCC2016_spec"/"archive"/f"{dirname}.zip")
 
         # Prepare data identities.
         mode: Mode = "trains" if train else "evals"
