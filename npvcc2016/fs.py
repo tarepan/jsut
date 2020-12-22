@@ -43,7 +43,7 @@ def try_to_acquire_archive_contents(
             # A dataset file exist, so pull and extract.
             with fsspec.open(adress_archive, "rb") as archive:
                 with NamedTemporaryFile("wb") as tmp:
-                    tmp.write(BytesIO(archive.read()))
+                    tmp.write(archive.read())
                     tmp.seek(0)
                     extract_archive(tmp.name, str(path_contents_local))
             return True
