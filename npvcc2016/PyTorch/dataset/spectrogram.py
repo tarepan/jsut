@@ -95,10 +95,6 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
             save_archive(self._path_contents_local, dataset_adress)
             print("Dataset contents was generated and archive was saved.")
 
-        # todo: cache
-            # if self._cache:
-            #     self._data_cache[id.mode][id.speaker][id.serial_num] = spec
-
     def _generate_dataset_contents(self) -> None:
         """
         Generate dataset with corpus auto-download and preprocessing.
@@ -107,22 +103,9 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
         preprocess_as_wave(self._corpus, self._path_contents_local)
         preprocess_as_spec(self._corpus, self._path_contents_local)
 
-    def _preprocess_corpus(self):
-        # prepare cache dictionary
-        self._data_cache = {"trains": {}, "evals": {}}
-        # spec directory preparation. directory strucutre: /("evals"|"trains")/(Speaker)/specs/xxxxx.spec
-        for mode in ["trains", "evals"]:
-            # prepare speaker directories/dictionaries.
-            for speaker in ["SF1", "SM1", "TF2", "TM3"]:
-                (self._path_corpus / mode / speaker / "specs").mkdir(exist_ok=True)
-                self._data_cache[mode][speaker] = {}
-
-    def _load_spec_cache(self, id: ItemIdNpVCC2016) -> Tensor:
-        return self._data_cache[id.mode][id.speaker][id.serial_num]
-
     def _load_datum(self, id: ItemIdNpVCC2016) -> Union[Datum_NpVCC2016_spec_train, Datum_NpVCC2016_spec_test]:
         spec_path = get_dataset_spec_path(self._path_contents_local, id)
-        spec: Tensor = self._transform(self._load_spec_cache(id) if self._cache else load(spec_path))
+        spec: Tensor = self._transform(load(spec_path))
         if self._train:
             return Datum_NpVCC2016_spec_train(spec, f"{id.mode}-{id.speaker}-{id.serial_num}")
         else:
@@ -147,6 +130,6 @@ if __name__ == "__main__":
     NpVCC2016_spec(train=True, download_corpus=True)  # commented out for safety
 
     # setup
-    dataset_train_SF1 = NpVCC2016_spec(train=True, download_corpus=False, speakers=["SF1"], cache=True)
+    dataset_train_SF1 = NpVCC2016_spec(train=True, download_corpus=False, speakers=["SF1"])
     print(dataset_train_SF1[0])
     # print(torch.load("./npVCC2016-1.0.0/trains/SF1/specs/100056.spec"))
