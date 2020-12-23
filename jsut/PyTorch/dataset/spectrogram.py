@@ -8,15 +8,15 @@ from torchaudio import load as load_wav
 from torchaudio.transforms import Spectrogram, Resample # type: ignore
 
 from .waveform import get_dataset_wave_path, preprocess_as_wave
-from ...corpus import ItemIdNpVCC2016, Mode, NpVCC2016, Speaker
+from ...corpus import ItemIdJSUT, Subtype, JSUT
 from ...fs import hash_args, save_archive, try_to_acquire_archive_contents
 
 
-def get_dataset_spec_path(dir_dataset: Path, id: ItemIdNpVCC2016) -> Path:
-    return dir_dataset / id.mode / id.speaker / "specs" / f"{id.serial_num}.spec.pt"
+def get_dataset_spec_path(dir_dataset: Path, id: ItemIdJSUT) -> Path:
+    return dir_dataset / id.subtype / "specs" / f"{id.serial_num}.spec.pt"
 
 
-def preprocess_as_spec(corpus: NpVCC2016, dir_dataset: Path, new_sr: Optional[int] = None) -> None:
+def preprocess_as_spec(corpus: JSUT, dir_dataset: Path, new_sr: Optional[int] = None) -> None:
     """
     Transform npVCC2016 corpus contents into spectrogram Tensor.
 
@@ -36,18 +36,18 @@ def preprocess_as_spec(corpus: NpVCC2016, dir_dataset: Path, new_sr: Optional[in
         save(spec, path_spec)
 
 
-class Datum_NpVCC2016_spec_train(NamedTuple):
+class Datum_JSUT_spec_train(NamedTuple):
     spectrogram: Tensor
     label: str
 
 
-class Datum_NpVCC2016_spec_test(NamedTuple):
+class Datum_JSUT_spec_test(NamedTuple):
     waveform: Tensor
     spectrogram: Tensor
     label: str
 
 
-class NpVCC2016_spec(Dataset): # I failed to understand this error
+class JSUT_spec(Dataset): # I failed to understand this error
     """
     Audio spectrogram dataset from npVCC2016 non-parallel speech corpus.
     """
@@ -55,7 +55,7 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
     def __init__(
         self,
         train: bool,
-        speakers: List[Speaker] = ["SF1", "SM1", "TF2", "TM3"],
+        subtypes: List[Subtype] = ["basic5000"],
         download_corpus: bool = False,
         corpus_adress: Optional[str] = None,
         dataset_adress: Optional[str] = None,
@@ -65,7 +65,7 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
         """
         Args:
             train: train_dataset if True else validation/test_dataset.
-            speakers: Selected speaker list.
+            subtypes: Corpus item subtypes for the dataset.
             download_corpus: Whether download the corpus or not when dataset is not found.
             corpus_adress: URL/localPath of corpus archive (e.g. `s3::` can be used). None use default URL.
             dataset_adress: URL/localPath of dataset archive (e.g. `s3::` can be used). None use default local path.
@@ -81,18 +81,14 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
         self._resample_sr = resample_sr
         self._transform = transform
 
-        self._corpus = NpVCC2016(download_corpus, corpus_adress)
-        dirname = hash_args(train, speakers, download_corpus, corpus_adress, dataset_adress)
-        self._path_contents_local = Path(".")/"tmp"/"npVCC2016_spec"/"contents"/dirname
-        dataset_adress = dataset_adress if dataset_adress else str(Path(".")/"tmp"/"npVCC2016_spec"/"archive"/f"{dirname}.zip")
+        self._corpus = JSUT(download_corpus, corpus_adress)
+        dirname = hash_args(train, subtypes, download_corpus, corpus_adress, dataset_adress)
+        JSSS_spec_root = Path(".")/"tmp"/"JSSS_spec"
+        self._path_contents_local = JSSS_spec_root/"contents"/dirname
+        dataset_adress = dataset_adress if dataset_adress else str(JSSS_spec_root/"archive"/f"{dirname}.zip")
 
         # Prepare data identities.
-        mode: Mode = "trains" if train else "evals"
-        self._ids: List[ItemIdNpVCC2016] = list(
-            filter(lambda id: id.speaker in speakers,
-                filter(lambda id: id.mode == mode,
-                    self._corpus.get_identities()
-        )))
+        self._ids: List[ItemIdJSUT] = list(filter(lambda id: id.subtype in subtypes, self._corpus.get_identities()))
 
         # Deploy dataset contents.
         contents_acquired = try_to_acquire_archive_contents(self._path_contents_local, dataset_adress, True)
@@ -111,17 +107,18 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
         preprocess_as_wave(self._corpus, self._path_contents_local, self._resample_sr)
         preprocess_as_spec(self._corpus, self._path_contents_local, self._resample_sr)
 
-    def _load_datum(self, id: ItemIdNpVCC2016) -> Union[Datum_NpVCC2016_spec_train, Datum_NpVCC2016_spec_test]:
+    def _load_datum(self, id: ItemIdJSUT) -> Union[Datum_JSUT_spec_train, Datum_JSUT_spec_test]:
         spec_path = get_dataset_spec_path(self._path_contents_local, id)
-        spec: Tensor = self._transform(load(spec_path))
+        spec: Tensor = load(spec_path)
+        spec = self._transform(spec)
+        label = f"{id.subtype}-{id.serial_num}"
         if self._train:
-            return Datum_NpVCC2016_spec_train(spec, f"{id.mode}-{id.speaker}-{id.serial_num}")
+            return Datum_JSUT_spec_train(spec, label)
         else:
-            # todo: cache
             waveform: Tensor = load(get_dataset_wave_path(self._path_contents_local, id))
-            return Datum_NpVCC2016_spec_test(waveform, spec, f"{id.mode}-{id.speaker}-{id.serial_num}")
+            return Datum_JSUT_spec_test(waveform, spec, label)
 
-    def __getitem__(self, n: int) -> Union[Datum_NpVCC2016_spec_train, Datum_NpVCC2016_spec_test]:
+    def __getitem__(self, n: int) -> Union[Datum_JSUT_spec_train, Datum_JSUT_spec_test]:
         """Load the n-th sample from the dataset.
         Args:
             n : The index of the datum to be loaded
@@ -135,9 +132,9 @@ class NpVCC2016_spec(Dataset): # I failed to understand this error
 if __name__ == "__main__":
     print("This is spectrogram.py")
     # dataset preparation
-    NpVCC2016_spec(train=True, download_corpus=True)  # commented out for safety
+    JSUT_spec(train=True, download_corpus=True)  # commented out for safety
 
     # setup
-    dataset_train_SF1 = NpVCC2016_spec(train=True, download_corpus=False, speakers=["SF1"])
+    dataset_train_SF1 = JSUT_spec(train=True, download_corpus=False)
     print(dataset_train_SF1[0])
     # print(torch.load("./npVCC2016-1.0.0/trains/SF1/specs/100056.spec"))

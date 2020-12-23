@@ -1,14 +1,15 @@
-from typing import Callable, List, Optional, Union
+from typing import Callable, List, Optional
 
 # currently there is no stub in pytorch lightning
 import pytorch_lightning as pl  # type: ignore
 from torch.tensor import Tensor
 from torch.utils.data import random_split, DataLoader
 
-from ...dataset.waveform import NpVCC2016_wave, Speaker
+from ...dataset.waveform import JSUT_wave
+from ....corpus import Subtype
 
 
-class NpVCC2016_wave_DataModule(pl.LightningDataModule):
+class JSUT_wave_DataModule(pl.LightningDataModule):
     """
     npVCC2016 speech corpus's PyTorch Lightning datamodule
     """
@@ -17,7 +18,7 @@ class NpVCC2016_wave_DataModule(pl.LightningDataModule):
         self,
         batch_size: int,
         download: bool,
-        speakers: List[Speaker] = ["SF1", "SM1", "TF2", "TM3"],
+        subtypes: List[Subtype] = ["basic5000"],
         transform: Callable[[Tensor], Tensor] = lambda i: i,
         corpus_adress: Optional[str] = None,
         dataset_adress: Optional[str] = None,
@@ -26,7 +27,7 @@ class NpVCC2016_wave_DataModule(pl.LightningDataModule):
         super().__init__()
         self.n_batch = batch_size
         self.download = download
-        self.speakers = speakers
+        self._subtypes = subtypes
         self.transform = transform
         self.corpus_adress = corpus_adress
         self.dataset_adress = dataset_adress
@@ -37,9 +38,9 @@ class NpVCC2016_wave_DataModule(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None) -> None:
         if stage == "fit" or stage is None:
-            dataset_train = NpVCC2016_wave(
+            dataset_train = JSUT_wave(
                 train=True,
-                speakers=self.speakers,
+                subtypes=self._subtypes,
                 download_corpus=self.download,
                 corpus_adress=self.corpus_adress,
                 dataset_adress=self.dataset_adress,
@@ -50,9 +51,9 @@ class NpVCC2016_wave_DataModule(pl.LightningDataModule):
                 dataset_train, [n_train - 10, 10]
             )
         if stage == "test" or stage is None:
-            self.data_test = NpVCC2016_wave(
+            self.data_test = JSUT_wave(
                 train=False,
-                speakers=self.speakers,
+                subtypes=self._subtypes,
                 download_corpus=self.download,
                 corpus_adress=self.corpus_adress,
                 dataset_adress=self.dataset_adress,
@@ -72,15 +73,15 @@ class NpVCC2016_wave_DataModule(pl.LightningDataModule):
 if __name__ == "__main__":
     print("This is datamodule/waveform.py")
     # If you use batch (n>1), transform function for Tensor shape rearrangement is needed
-    dm_npVCC_wave = NpVCC2016_wave_DataModule(1, download=True)
+    dm_JSUT_wave = JSUT_wave_DataModule(1, download=True)
 
     # download & preprocessing
-    dm_npVCC_wave.prepare_data()
+    dm_JSUT_wave.prepare_data()
 
     # runtime setup
-    dm_npVCC_wave.setup(stage="fit")
+    dm_JSUT_wave.setup(stage="fit")
 
     # yield dataloader
-    dl = dm_npVCC_wave.train_dataloader()
+    dl = dm_JSUT_wave.train_dataloader()
     print(next(iter(dl)))
     print("datamodule/waveform.py test passed")

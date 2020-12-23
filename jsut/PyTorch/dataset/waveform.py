@@ -16,14 +16,14 @@ from torchaudio import load as load_wav
 from torchaudio.transforms import Resample
 
 from ...fs import hash_args, try_to_acquire_archive_contents, save_archive
-from ...corpus import ItemIdNpVCC2016, Mode, NpVCC2016, Speaker
+from ...corpus import ItemIdJSUT, Subtype, JSUT
 
 
-def get_dataset_wave_path(dir_dataset: Path, id: ItemIdNpVCC2016) -> Path:
-    return dir_dataset / id.mode / id.speaker / "waves" / f"{id.serial_num}.wave.pt"
+def get_dataset_wave_path(dir_dataset: Path, id: ItemIdJSUT) -> Path:
+    return dir_dataset / id.subtype / "waves" / f"{id.serial_num}.wave.pt"
 
 
-def preprocess_as_wave(corpus: NpVCC2016, dir_dataset: Path, new_sr: Optional[int] = None) -> None:
+def preprocess_as_wave(corpus: JSUT, dir_dataset: Path, new_sr: Optional[int] = None) -> None:
     """
     Transform npVCC2016 corpus contents into waveform Tensor.
     Before this preprocessing, corpus contents should be deployed.
@@ -42,7 +42,7 @@ def preprocess_as_wave(corpus: NpVCC2016, dir_dataset: Path, new_sr: Optional[in
         save(waveform, path_wave)
 
 
-class Datum_NpVCC2016_wave(NamedTuple):
+class Datum_JSUT_wave(NamedTuple):
     """
     Datum of NpVCC2016 dataset
     """
@@ -51,7 +51,7 @@ class Datum_NpVCC2016_wave(NamedTuple):
     label: str
 
 
-class NpVCC2016_wave(Dataset): # I failed to understand this error
+class JSUT_wave(Dataset): # I failed to understand this error
     """
     Audio waveform dataset from npVCC2016 non-parallel speech corpus.
     This dataset yield (audio, label).
@@ -59,7 +59,7 @@ class NpVCC2016_wave(Dataset): # I failed to understand this error
     def __init__(
         self,
         train: bool,
-        speakers: List[Speaker] = ["SF1", "SM1", "TF2", "TM3"],
+        subtypes: List[Subtype] = ["basic5000"],
         download_corpus: bool = False,
         corpus_adress: Optional[str] = None,
         dataset_adress: Optional[str] = None,
@@ -69,7 +69,7 @@ class NpVCC2016_wave(Dataset): # I failed to understand this error
         """
         Args:
             train: train_dataset if True else validation/test_dataset.
-            speakers: Selected speaker list.
+            subtypes: Corpus item subtypes for the dataset.
             download_corpus: Whether download the corpus or not when dataset is not found.
             corpus_adress: URL/localPath of corpus archive (e.g. `s3::` can be used). None use default URL.
             dataset_adress: URL/localPath of dataset archive (e.g. `s3::` can be used). None use default local path.
@@ -84,18 +84,14 @@ class NpVCC2016_wave(Dataset): # I failed to understand this error
         self._resample_sr = resample_sr
         self._transform = transform
 
-        self._corpus = NpVCC2016(download_corpus, corpus_adress)
-        dirname = hash_args(train, speakers, download_corpus, corpus_adress, dataset_adress, resample_sr)
-        self._path_contents_local = Path(".")/"tmp"/"npVCC2016_wave"/"contents"/dirname
-        dataset_adress = dataset_adress if dataset_adress else str(Path(".")/"tmp"/"npVCC2016_wave"/"archive"/f"{dirname}.zip")
+        self._corpus = JSUT(download_corpus, corpus_adress)
+        dirname = hash_args(train, subtypes, download_corpus, corpus_adress, dataset_adress, resample_sr)
+        JSSS_wave_root = Path(".")/"tmp"/"JSSS_wave"
+        self._path_contents_local = JSSS_wave_root/"contents"/dirname
+        dataset_adress = dataset_adress if dataset_adress else str(JSSS_wave_root/"archive"/f"{dirname}.zip")
 
         # Prepare data identities.
-        mode: Mode = "trains" if train else "evals"
-        self._ids: List[ItemIdNpVCC2016] = list(
-            filter(lambda id: id.speaker in speakers,
-                filter(lambda id: id.mode == mode,
-                    self._corpus.get_identities()
-        )))
+        self._ids: List[ItemIdJSUT] = list(filter(lambda id: id.subtype in subtypes, self._corpus.get_identities()))
 
         # Deploy dataset contents.
         contents_acquired = try_to_acquire_archive_contents(self._path_contents_local, dataset_adress, True)
@@ -113,11 +109,11 @@ class NpVCC2016_wave(Dataset): # I failed to understand this error
         self._corpus.get_contents()
         preprocess_as_wave(self._corpus, self._path_contents_local, self._resample_sr)
 
-    def _load_datum(self, id: ItemIdNpVCC2016) -> Datum_NpVCC2016_wave:
+    def _load_datum(self, id: ItemIdJSUT) -> Datum_JSUT_wave:
         waveform: Tensor = load(get_dataset_wave_path(self._path_contents_local, id))
-        return Datum_NpVCC2016_wave(self._transform(waveform), f"{id.mode}-{id.speaker}-{id.serial_num}")
+        return Datum_JSUT_wave(self._transform(waveform), f"{id.subtype}-{id.serial_num}")
 
-    def __getitem__(self, n: int) -> Datum_NpVCC2016_wave:
+    def __getitem__(self, n: int) -> Datum_JSUT_wave:
         """Load the n-th sample from the dataset.
         Args:
             n: The index of the datum to be loaded
@@ -131,7 +127,7 @@ class NpVCC2016_wave(Dataset): # I failed to understand this error
 if __name__ == "__main__":
     print("This is waveform.py")
     # dataset preparation
-    NpVCC2016_wave(train=True, download_corpus=True)
+    JSUT_wave(train=True, download_corpus=True)
 
     # # setup
     # dataset_train_full = NpVCC2016(".", train=True, download=False)

@@ -12,49 +12,52 @@ from .fs import try_to_acquire_archive_contents
 # - contents: A directory in which archive's contents exist.
 
 
-# Mode = Literal["trains", "evals"] # >=Python3.8
-Mode = str
-# Speaker = Literal["SF1", "SM1", "TF2", "TM3"] # >=Python3.8
-Speaker = str
+# Mode = Literal[Longform, Shortform, "simplification", "summarization"] # >=Python3.8
+Subtype = str
+subtypes = [
+    "basic5000",
+    "countersuffix26",
+    "loanword128",
+    "onomatopee300",
+    "precedent130",
+    "repeat500",
+    "travel1000",
+    "utparaphrase512",
+    "voiceactress100",
+]
 
 
-class ItemIdNpVCC2016(NamedTuple):
-    mode: Mode
-    speaker: Speaker
-    serial_num: str
+class ItemIdJSUT(NamedTuple):
+    subtype: Subtype
+    serial_num: int
 
 
-class NpVCC2016:
+class JSUT:
     def __init__(
         self,
         download: bool = False,
         adress_archive: Optional[str] = None
     ) -> None:
         """
-        Wrapper of `npVCC2016` corpus.
-        [GitHub](https://github.com/tarepan/npVCC2016Corpus).
+        Wrapper of `jsut` corpus.
+        [Website](https://sites.google.com/site/shinnosuketakamichi/publication/jsut).
         Corpus will be deployed as below.
 
-        {dir_corpus_local}/
-            archive/
-                f"{corpus_name}.zip"
-            contents/
-                {extracted dirs & files}
-
         Args:
-        download: Download corpus when there is no archive in local.
-        adress_archive: Corpus archive adress (Various url type (e.g. S3, GCP) is accepted through `fsspec` library).
+            download: Download corpus when there is no archive in local.
+            adress_archive: Corpus archive adress (Various url type (e.g. S3, GCP) is accepted through `fsspec` library).
         """
-        ver: str = "1.0.0"
-        corpus_name: str = f"npVCC2016-{ver}"
+        ver: str = "ver1.1"
+        # Equal to 1st layer directory name of original zip.
+        self._corpus_name: str = f"jsut_{ver}"
 
-        default_url = f"https://github.com/tarepan/npVCC2016Corpus/releases/download/v{ver}/{corpus_name}.zip"
+        default_url = f"http://ss-takashi.sakura.ne.jp/corpus/{self._corpus_name}.zip"
         self._url = adress_archive if adress_archive else default_url
         self._download = download
-        self._fs: fsspec.AbstractFileSystem = fsspec.filesystem(get_protocol(self._url))
+        self._fs: fsspec.AbstractFileSystem = fsspec.filesystem(get_protocol(self._url if self._url else "./"))
 
-        dir_corpus_local: str = "./data/corpuses/npVCC2016/"
-        self._path_archive_local = Path(dir_corpus_local) / "archive" / f"{corpus_name}.zip"
+        dir_corpus_local: str = "./data/corpuses/jsut/"
+        self._path_archive_local = Path(dir_corpus_local) / "archive" / f"{self._corpus_name}.zip"
         self._path_contents_local = Path(dir_corpus_local) / "contents"
 
     def get_archive(self) -> None:
@@ -87,36 +90,31 @@ class NpVCC2016:
         if not acquired:
             raise RuntimeError(f"Specified corpus archive cannot be acquired. Check the link (`{self._url}`) or `download` option.")
 
-    def get_identities(self) -> List[ItemIdNpVCC2016]:
+    def get_identities(self) -> List[ItemIdJSUT]:
         """
         Get corpus item identities.
 
         Returns:
             Full item identity list.
         """
-        # data division is described in npVCC2016Corpus GitHub 
-        divs = {
-            "trains": {
-                "SF1": range(100001, 100082), 
-                "SM1": range(100001, 100082), 
-                "TF2": range(100082, 100163), 
-                "TM3": range(100082, 100163)
-            },
-            "evals": {
-                "SF1": range(200001, 200055), 
-                "SM1": range(200001, 200055), 
-                "TF2": range(200001, 200055), 
-                "TM3": range(200001, 200055)
-            }
+        subtype_info = {
+            "basic5000": range(1, 5001),
+            "countersuffix26": range(1, 27),
+            "loanword128": range(1, 129),
+            "onomatopee300": range(1, 301),
+            "precedent130": range(1, 131),
+            "repeat500": range(1, 101),
+            "travel1000": range(1, 1001),
+            "utparaphrase512": range(1, 315),
+            "voiceactress100": range(1, 101),
         }
-        ids: List[ItemIdNpVCC2016] = []
-        for mode in ["trains", "evals"]:
-            for speaker in ["SF1", "SM1", "TF2", "TM3"]:
-                for num in divs[mode][speaker]:
-                    ids.append(ItemIdNpVCC2016(mode, speaker, f"{num}"))
+        ids: List[ItemIdJSUT] = []
+        for subtype in subtypes:
+            for num in subtype_info[subtype]:
+                ids.append(ItemIdJSUT(subtype, num))
         return ids
 
-    def get_item_path(self, id: ItemIdNpVCC2016) -> Path:
+    def get_item_path(self, id: ItemIdJSUT) -> Path:
         """
         Get path of the item.
 
@@ -125,4 +123,19 @@ class NpVCC2016:
         Returns:
             Path of the specified item.
         """
-        return self._path_contents_local / id.mode / id.speaker / "wavs" / f"{id.serial_num}.wav"
+        subtype_dict = {
+            "basic5000": {"prefix": "BASIC5000", "zfill": 4},
+            "countersuffix26": {"prefix": "COUNTERSUFFIX26", "zfill": 2},
+            "loanword128": {"prefix": "LOANWORD128", "zfill": 3},
+            "onomatopee300": {"prefix": "ONOMATOPEE300", "zfill": 3},
+            "precedent130": {"prefix": "PRECEDENT130", "zfill": 3},
+            "repeat500": {"prefix": "REPEAT500_setN", "zfill": 3},
+            "travel1000": {"prefix": "TRAVEL1000", "zfill": 4},
+            "utparaphrase512": {"prefix": "UT-PARAPHRASE-sentXXX-phraseY", "zfill": 3},
+            "voiceactress100": {"prefix": "VOICEACTRESS100", "zfill": 3},
+        }
+        root = str(self._path_contents_local)
+        prefix = subtype_dict[id.subtype]
+        num = str(id.serial_num).zfill(int(subtype_dict[id.subtype]["zfill"]))
+        p = f"{root}/{self._corpus_name}/{id.subtype}/wav/{prefix}_{num}.wav"
+        return Path(p)
