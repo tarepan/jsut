@@ -83,9 +83,9 @@ class JSUT_spec(Dataset): # I failed to understand this error
 
         self._corpus = JSUT(download_corpus, corpus_adress)
         dirname = hash_args(train, subtypes, download_corpus, corpus_adress, dataset_adress)
-        JSSS_spec_root = Path(".")/"tmp"/"JSSS_spec"
-        self._path_contents_local = JSSS_spec_root/"contents"/dirname
-        dataset_adress = dataset_adress if dataset_adress else str(JSSS_spec_root/"archive"/f"{dirname}.zip")
+        JSUT_spec_root = Path(".")/"tmp"/"JSUT_spec"
+        self._path_contents_local = JSUT_spec_root/"contents"/dirname
+        dataset_adress = dataset_adress if dataset_adress else str(JSUT_spec_root/"archive"/f"{dirname}.zip")
 
         # Prepare data identities.
         self._ids: List[ItemIdJSUT] = list(filter(lambda id: id.subtype in subtypes, self._corpus.get_identities()))

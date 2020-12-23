@@ -86,9 +86,9 @@ class JSUT_wave(Dataset): # I failed to understand this error
 
         self._corpus = JSUT(download_corpus, corpus_adress)
         dirname = hash_args(train, subtypes, download_corpus, corpus_adress, dataset_adress, resample_sr)
-        JSSS_wave_root = Path(".")/"tmp"/"JSSS_wave"
-        self._path_contents_local = JSSS_wave_root/"contents"/dirname
-        dataset_adress = dataset_adress if dataset_adress else str(JSSS_wave_root/"archive"/f"{dirname}.zip")
+        JSUT_wave_root = Path(".")/"tmp"/"JSUT_wave"
+        self._path_contents_local = JSUT_wave_root/"contents"/dirname
+        dataset_adress = dataset_adress if dataset_adress else str(JSUT_wave_root/"archive"/f"{dirname}.zip")
 
         # Prepare data identities.
         self._ids: List[ItemIdJSUT] = list(filter(lambda id: id.subtype in subtypes, self._corpus.get_identities()))
