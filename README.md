@@ -2,10 +2,10 @@
 <!-- [![PyPI version](https://badge.fury.io/py/npvcc2016.svg)](https://badge.fury.io/py/npVCC2016) -->
 <!-- ![Python Versions](https://img.shields.io/pypi/pyversions/npvcc2016.svg)   -->
 
-`jsut` is a Python package for loader of **[JSUT: Japanese speech corpus of Saruwatari-lab., University of Tokyo][website]**.  
+`jsut` is a Python loader of **[JSUT: Japanese speech corpus of Saruwatari-lab., University of Tokyo][website]**.  
 For machine learning, corpus/dataset is indispensable - but troublesome - part.  
 We need portable & flexible loader for streamline development.  
-`jsut` is the one!!  
+`jsut` is the one!  
 
 ## Demo
 
