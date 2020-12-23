@@ -16,9 +16,9 @@ pip install npvcc2016
 ```
 
 ```python
-from npvcc2016.PyTorch.dataset.waveform import NpVCC2016
+from npvcc2016.PyTorch.dataset.waveform import NpVCC2016_wave
 
-dataset = NpVCC2016(".", train=True, download=True)
+dataset = NpVCC2016(train=True, download=True)
 
 for datum in dataset:
     print("Yeah, data is acquired with only two line of code!!")
@@ -35,16 +35,11 @@ npVCC2016 corpus is speech corpus, so we provide `waveform` dataset and `spectro
 
 - PyTorch
   - (pure PyTorch) dataset
-    - waveform: `NpVCC2016`
+    - waveform: `NpVCC2016_wave`
     - spectrogram: `NpVCC2016_spec`
   - PyTorch-Lightning
-    - waveform: `NpVCC2016DataModule`
+    - waveform: `NpVCC2016_wave_DataModule`
     - spectrogram: `NpVCC2016_spec_DataModule`
-
-### Extendibility
-`waveform` dataset has easy-to-extend structure.  
-By overiding hook functions, you can customize preprocessing for your machine-learning tasks.  
-Please check `dataset`-`waveform` file.  
 
 ## Dependency Notes
 ### PyTorch version

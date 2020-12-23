@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "npvcc2016"
-version = "2.0.1"
+version = "3.0.0"
 description = "npvcc2016: Python loader of npVCC2016 speech corpus"
 authors = ["Tarepan"]
 license = "MIT"
