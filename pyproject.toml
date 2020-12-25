@@ -14,6 +14,7 @@ torch = "*"
 torchaudio = "^0.7.0"
 pytorch-lightning = "^1.0.6"
 fsspec = {extras = ["s3"], version = "^0.8.4"}
+corpuspy = {git = "https://github.com/tarepan/corpuspy", rev = "main"}
 
 [tool.poetry.dev-dependencies]
 

@@ -6,34 +6,39 @@ from torch.utils.data.dataset import Dataset
 # currently there is no stub in torchaudio [issue](https://github.com/pytorch/audio/issues/615)
 from torchaudio import load as load_wav
 from torchaudio.transforms import Spectrogram, Resample # type: ignore
+from corpuspy.components.archive import hash_args, save_archive, try_to_acquire_archive_contents
 
 from .waveform import get_dataset_wave_path, preprocess_as_wave
 from ...corpus import ItemIdJSUT, Subtype, JSUT
-from ...fs import hash_args, save_archive, try_to_acquire_archive_contents
 
 
 def get_dataset_spec_path(dir_dataset: Path, id: ItemIdJSUT) -> Path:
     return dir_dataset / id.subtype / "specs" / f"{id.serial_num}.spec.pt"
 
 
-def preprocess_as_spec(corpus: JSUT, dir_dataset: Path, new_sr: Optional[int] = None) -> None:
-    """
-    Transform npVCC2016 corpus contents into spectrogram Tensor.
+
+def preprocess_as_spec(path_wav: Path, id: ItemIdJSUT, dir_dataset: Path, new_sr: Optional[int] = None) -> None:
+    """Transform JSUT corpus contents into spectrogram Tensor.
+
+    Before this preprocessing, corpus contents should be deployed.
 
     Args:
+        path_wav: processded .wav path.
+        id: Target item identity.
+        dir_dataset: Dataset root path.
         new_sr: If specified, resample with specified sampling rate.
     """
-    for id in corpus.get_identities():
-        waveform, _sr_orig = load_wav(corpus.get_item_path(id))
-        if new_sr is not None:
-            waveform = Resample(_sr_orig, new_sr)(waveform)
-        # :: [1, Length] -> [Length,]
-        waveform: Tensor = waveform[0, :]
-        # defaults: hop_length = win_length // 2, window_fn = torch.hann_window, power = 2
-        spec: Tensor = Spectrogram(254)(waveform)
-        path_spec = get_dataset_spec_path(dir_dataset, id)
-        path_spec.parent.mkdir(parents=True, exist_ok=True)
-        save(spec, path_spec)
+
+    waveform, _sr_orig = load_wav(path_wav)
+    if new_sr is not None:
+        waveform = Resample(_sr_orig, new_sr)(waveform)
+    # :: [1, Length] -> [Length,]
+    waveform: Tensor = waveform[0, :]
+    # defaults: hop_length = win_length // 2, window_fn = torch.hann_window, power = 2
+    spec: Tensor = Spectrogram(254)(waveform)
+    path_spec = get_dataset_spec_path(dir_dataset, id)
+    path_spec.parent.mkdir(parents=True, exist_ok=True)
+    save(spec, path_spec)
 
 
 class Datum_JSUT_spec_train(NamedTuple):
@@ -48,8 +53,7 @@ class Datum_JSUT_spec_test(NamedTuple):
 
 
 class JSUT_spec(Dataset): # I failed to understand this error
-    """
-    Audio spectrogram dataset from npVCC2016 non-parallel speech corpus.
+    """Audio spectrogram dataset from JSUT speech corpus.
     """
 
     def __init__(
@@ -81,8 +85,8 @@ class JSUT_spec(Dataset): # I failed to understand this error
         self._resample_sr = resample_sr
         self._transform = transform
 
-        self._corpus = JSUT(download_corpus, corpus_adress)
-        dirname = hash_args(train, subtypes, download_corpus, corpus_adress, dataset_adress)
+        self._corpus = JSUT(corpus_adress, download_corpus)
+        dirname = hash_args(train, subtypes, download_corpus, corpus_adress, dataset_adress, resample_sr)
         JSUT_spec_root = Path(".")/"tmp"/"JSUT_spec"
         self._path_contents_local = JSUT_spec_root/"contents"/dirname
         dataset_adress = dataset_adress if dataset_adress else str(JSUT_spec_root/"archive"/f"{dirname}.zip")
@@ -91,7 +95,7 @@ class JSUT_spec(Dataset): # I failed to understand this error
         self._ids: List[ItemIdJSUT] = list(filter(lambda id: id.subtype in subtypes, self._corpus.get_identities()))
 
         # Deploy dataset contents.
-        contents_acquired = try_to_acquire_archive_contents(self._path_contents_local, dataset_adress, True)
+        contents_acquired = try_to_acquire_archive_contents(dataset_adress, self._path_contents_local)
         if not contents_acquired:
             # Generate the dataset contents from corpus
             print("Dataset archive file is not found. Automatically generating new dataset...")
@@ -100,12 +104,16 @@ class JSUT_spec(Dataset): # I failed to understand this error
             print("Dataset contents was generated and archive was saved.")
 
     def _generate_dataset_contents(self) -> None:
+        """Generate dataset with corpus auto-download and preprocessing.
         """
-        Generate dataset with corpus auto-download and preprocessing.
-        """
+
         self._corpus.get_contents()
-        preprocess_as_wave(self._corpus, self._path_contents_local, self._resample_sr)
-        preprocess_as_spec(self._corpus, self._path_contents_local, self._resample_sr)
+        print("Preprocessing...")
+        for id in self._ids:
+            path_wav = self._corpus.get_item_path(id)
+            preprocess_as_spec(path_wav, id, self._path_contents_local, self._resample_sr)
+            preprocess_as_wave(path_wav, id, self._path_contents_local, self._resample_sr)
+        print("Preprocessed.")
 
     def _load_datum(self, id: ItemIdJSUT) -> Union[Datum_JSUT_spec_train, Datum_JSUT_spec_test]:
         spec_path = get_dataset_spec_path(self._path_contents_local, id)

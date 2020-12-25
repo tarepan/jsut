@@ -1,15 +1,9 @@
+from jsut.fs import forward_from_general
 from typing import List, NamedTuple, Optional
 from pathlib import Path
 
-import fsspec # type: ignore
-from fsspec.utils import get_protocol # type: ignore
-
-from .fs import try_to_acquire_archive_contents
-
-
-# ## Glossary
-# - archive: Single archive file.
-# - contents: A directory in which archive's contents exist.
+from corpuspy.interface import AbstractCorpus
+from corpuspy.helper.contents import get_contents
 
 
 # Mode = Literal[Longform, Shortform, "simplification", "summarization"] # >=Python3.8
@@ -28,75 +22,58 @@ subtypes = [
 
 
 class ItemIdJSUT(NamedTuple):
+    """Identity of JSUT corpus's item.
+    """
+    
     subtype: Subtype
     serial_num: int
 
 
-class JSUT:
-    def __init__(
-        self,
-        download: bool = False,
-        adress_archive: Optional[str] = None
-    ) -> None:
-        """
-        Wrapper of `jsut` corpus.
-        [Website](https://sites.google.com/site/shinnosuketakamichi/publication/jsut).
-        Corpus will be deployed as below.
+class JSUT(AbstractCorpus[ItemIdJSUT]):
+    """JSUT corpus.
+    
+    Archive/contents handler of JSUT corpus.
+    """
+    
+    def __init__(self, adress: Optional[str] = None, download_origin: bool = False) -> None:
+        """Initiate JSUT with archive options.
 
         Args:
-            download: Download corpus when there is no archive in local.
-            adress_archive: Corpus archive adress (Various url type (e.g. S3, GCP) is accepted through `fsspec` library).
+            adress: Corpus archive adress (e.g. path, S3) from/to which archive will be read/written through `fsspec`.
+            download_origin: Download original corpus when there is no corpus in local and specified adress.
         """
+
         ver: str = "ver1.1"
         # Equal to 1st layer directory name of original zip.
         self._corpus_name: str = f"jsut_{ver}"
+        self._origin_adress = f"http://ss-takashi.sakura.ne.jp/corpus/{self._corpus_name}.zip"
 
-        default_url = f"http://ss-takashi.sakura.ne.jp/corpus/{self._corpus_name}.zip"
-        self._url = adress_archive if adress_archive else default_url
-        self._download = download
-        self._fs: fsspec.AbstractFileSystem = fsspec.filesystem(get_protocol(self._url if self._url else "./"))
-
-        dir_corpus_local: str = "./data/corpuses/jsut/"
-        self._path_archive_local = Path(dir_corpus_local) / "archive" / f"{self._corpus_name}.zip"
+        dir_corpus_local: str = "./data/corpuses/JSUT/"
+        default_path_archive = str((Path(dir_corpus_local) / "archive" / f"{self._corpus_name}.zip").resolve())
         self._path_contents_local = Path(dir_corpus_local) / "contents"
+        self._adress = adress if adress else default_path_archive
 
-    def get_archive(self) -> None:
-        """
-        Get the corpus archive file.
-        """
-        # library selection:
-        #   `torchaudio.datasets.utils.download_url` is good for basic purpose, but not compatible with private storages.
-        # todo: caching
-        path_archive = self._path_archive_local
-        if path_archive.exists():
-            if path_archive.is_file():
-                print("Archive file already exists.")
-            else:
-                raise RuntimeError(f"{str(path_archive)} should be archive file or empty, but it is directory.")
-        else:
-            if self._download:
-                path_archive.parent.mkdir(parents=True, exist_ok=True)
-                self._fs.get_file(self._url, path_archive)
-            else:
-                raise RuntimeError("Try to get_archive, but `download` is disabled.")
+        self._download_origin = download_origin
 
     def get_contents(self) -> None:
+        """Get corpus contents into local.
         """
-        Get the archive and extract the contents if needed.
+
+        get_contents(self._adress, self._path_contents_local, self._download_origin, self.forward_from_origin)
+
+    def forward_from_origin(self) -> None:
+        """Forward original corpus archive to the adress.
         """
-        # todo: caching
-        path_contents = self._path_contents_local
-        acquired = try_to_acquire_archive_contents(path_contents, self._url, self._download)
-        if not acquired:
-            raise RuntimeError(f"Specified corpus archive cannot be acquired. Check the link (`{self._url}`) or `download` option.")
+
+        forward_from_general(self._origin_adress, self._adress)
 
     def get_identities(self) -> List[ItemIdJSUT]:
-        """
-        Get corpus item identities.
+        """Get corpus item identities.
 
         Returns:
             Full item identity list.
         """
+
         subtype_info = {
             "basic5000": range(1, 5001),
             "countersuffix26": range(1, 27),
@@ -115,15 +92,15 @@ class JSUT:
         return ids
 
     def get_item_path(self, id: ItemIdJSUT) -> Path:
-        """
-        Get path of the item.
+        """Get path of the item.
 
         Args:
             id: Target item identity.
         Returns:
             Path of the specified item.
         """
-        subtype_dict = {
+
+        subs = {
             "basic5000": {"prefix": "BASIC5000", "zfill": 4},
             "countersuffix26": {"prefix": "COUNTERSUFFIX26", "zfill": 2},
             "loanword128": {"prefix": "LOANWORD128", "zfill": 3},
@@ -135,7 +112,7 @@ class JSUT:
             "voiceactress100": {"prefix": "VOICEACTRESS100", "zfill": 3},
         }
         root = str(self._path_contents_local)
-        prefix = subtype_dict[id.subtype]
-        num = str(id.serial_num).zfill(int(subtype_dict[id.subtype]["zfill"]))
+        prefix = subs[id.subtype]
+        num = str(id.serial_num).zfill(int(subs[id.subtype]["zfill"]))
         p = f"{root}/{self._corpus_name}/{id.subtype}/wav/{prefix}_{num}.wav"
         return Path(p)

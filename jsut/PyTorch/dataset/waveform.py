@@ -1,11 +1,3 @@
-"""
-# Corpus/Dataset guide
-Corpus: Distributed data
-Dataset: Processed corpus for specific purpose
-For example, JSUT corpus contains waves, and can be processed into JSUT-spec dataset which is made of spectrograms.
-"""
-
-# from typing import Callable, List, Literal, NamedTuple # >= Python3.8
 from typing import Callable, List, NamedTuple, Optional
 from pathlib import Path
 
@@ -14,8 +6,8 @@ from torch.utils.data import Dataset
 # currently there is no stub in torchaudio [issue](https://github.com/pytorch/audio/issues/615)
 from torchaudio import load as load_wav
 from torchaudio.transforms import Resample
+from corpuspy.components.archive import hash_args, save_archive, try_to_acquire_archive_contents
 
-from ...fs import hash_args, try_to_acquire_archive_contents, save_archive
 from ...corpus import ItemIdJSUT, Subtype, JSUT
 
 
@@ -23,23 +15,26 @@ def get_dataset_wave_path(dir_dataset: Path, id: ItemIdJSUT) -> Path:
     return dir_dataset / id.subtype / "waves" / f"{id.serial_num}.wave.pt"
 
 
-def preprocess_as_wave(corpus: JSUT, dir_dataset: Path, new_sr: Optional[int] = None) -> None:
-    """
-    Transform npVCC2016 corpus contents into waveform Tensor.
+def preprocess_as_wave(path_wav: Path, id: ItemIdJSUT, dir_dataset: Path, new_sr: Optional[int] = None) -> None:
+    """Transform JSUT corpus contents into waveform Tensor.
+
     Before this preprocessing, corpus contents should be deployed.
 
     Args:
+        path_wav: processded .wav path.
+        id: Target item identity.
+        dir_dataset: Dataset root path.
         new_sr: If specified, resample with specified sampling rate.
     """
-    for id in corpus.get_identities():
-        waveform, _sr_orig = load_wav(corpus.get_item_path(id))
-        if new_sr is not None:
-            waveform = Resample(_sr_orig, new_sr)(waveform)
-        # :: [1, Length] -> [Length,]
-        waveform: Tensor = waveform[0, :]
-        path_wave = get_dataset_wave_path(dir_dataset, id)
-        path_wave.parent.mkdir(parents=True, exist_ok=True)
-        save(waveform, path_wave)
+
+    waveform, _sr_orig = load_wav(path_wav)
+    if new_sr is not None:
+        waveform = Resample(_sr_orig, new_sr)(waveform)
+    # :: [1, Length] -> [Length,]
+    waveform: Tensor = waveform[0, :]
+    path_wave = get_dataset_wave_path(dir_dataset, id)
+    path_wave.parent.mkdir(parents=True, exist_ok=True)
+    save(waveform, path_wave)
 
 
 class Datum_JSUT_wave(NamedTuple):
@@ -52,10 +47,9 @@ class Datum_JSUT_wave(NamedTuple):
 
 
 class JSUT_wave(Dataset): # I failed to understand this error
+    """Audio waveform dataset from JSUT speech corpus.
     """
-    Audio waveform dataset from npVCC2016 non-parallel speech corpus.
-    This dataset yield (audio, label).
-    """
+
     def __init__(
         self,
         train: bool,
@@ -84,7 +78,7 @@ class JSUT_wave(Dataset): # I failed to understand this error
         self._resample_sr = resample_sr
         self._transform = transform
 
-        self._corpus = JSUT(download_corpus, corpus_adress)
+        self._corpus = JSUT(corpus_adress, download_corpus)
         dirname = hash_args(train, subtypes, download_corpus, corpus_adress, dataset_adress, resample_sr)
         JSUT_wave_root = Path(".")/"tmp"/"JSUT_wave"
         self._path_contents_local = JSUT_wave_root/"contents"/dirname
@@ -94,7 +88,7 @@ class JSUT_wave(Dataset): # I failed to understand this error
         self._ids: List[ItemIdJSUT] = list(filter(lambda id: id.subtype in subtypes, self._corpus.get_identities()))
 
         # Deploy dataset contents.
-        contents_acquired = try_to_acquire_archive_contents(self._path_contents_local, dataset_adress, True)
+        contents_acquired = try_to_acquire_archive_contents(dataset_adress, self._path_contents_local)
         if not contents_acquired:
             # Generate the dataset contents from corpus
             print("Dataset archive file is not found. Automatically generating new dataset...")
@@ -106,8 +100,13 @@ class JSUT_wave(Dataset): # I failed to understand this error
         """
         Generate dataset with corpus auto-download and preprocessing.
         """
+
         self._corpus.get_contents()
-        preprocess_as_wave(self._corpus, self._path_contents_local, self._resample_sr)
+        print("Preprocessing...")
+        for id in self._ids:
+            path_wav = self._corpus.get_item_path(id)
+            preprocess_as_wave(path_wav, id, self._path_contents_local, self._resample_sr)
+        print("Preprocessed.")
 
     def _load_datum(self, id: ItemIdJSUT) -> Datum_JSUT_wave:
         waveform: Tensor = load(get_dataset_wave_path(self._path_contents_local, id))
