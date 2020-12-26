@@ -4,6 +4,7 @@ from pathlib import Path
 
 from corpuspy.interface import AbstractCorpus
 from corpuspy.helper.contents import get_contents
+from corpuspy.helper.forward import forward_from_GDrive
 
 
 # Mode = Literal[Longform, Shortform, "simplification", "summarization"] # >=Python3.8
@@ -34,6 +35,8 @@ class JSUT(AbstractCorpus[ItemIdJSUT]):
     
     Archive/contents handler of JSUT corpus.
     """
+
+    gdrive_contents_id: str = "1f7bIQfwWdFOxeaYzs5Cw-HTcA8uwQ8qp"
     
     def __init__(self, adress: Optional[str] = None, download_origin: bool = False) -> None:
         """Initiate JSUT with archive options.
@@ -64,8 +67,10 @@ class JSUT(AbstractCorpus[ItemIdJSUT]):
     def forward_from_origin(self) -> None:
         """Forward original corpus archive to the adress.
         """
+        # Design Notes:
+        #   Do not use http origin because of slow download. Official Google Drive alternative is used.
 
-        forward_from_general(self._origin_adress, self._adress)
+        forward_from_GDrive(self.gdrive_contents_id, self._adress, 2.5)
 
     def get_identities(self) -> List[ItemIdJSUT]:
         """Get corpus item identities.
