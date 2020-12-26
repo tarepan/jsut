@@ -1,11 +1,11 @@
 [tool.poetry]
-name = "npvcc2016"
-version = "3.0.0"
-description = "npvcc2016: Python loader of npVCC2016 speech corpus"
+name = "jsut"
+version = "0.0.1"
+description = "jsut - Python loader of JSUT corpus"
 authors = ["Tarepan"]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/tarepan/npVCC2016"
+repository = "https://github.com/tarepan/jsut"
 
 
 [tool.poetry.dependencies]
