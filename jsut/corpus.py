@@ -15,9 +15,11 @@ subtypes = [
     "loanword128",
     "onomatopee300",
     "precedent130",
-    "repeat500",
+    # # not work because of path handling
+    # "repeat500",
     "travel1000",
-    "utparaphrase512",
+    # # not work because of path handling
+    # "utparaphrase512",
     "voiceactress100",
 ]
 
