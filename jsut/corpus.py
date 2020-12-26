@@ -117,7 +117,7 @@ class JSUT(AbstractCorpus[ItemIdJSUT]):
             "voiceactress100": {"prefix": "VOICEACTRESS100", "zfill": 3},
         }
         root = str(self._path_contents_local)
-        prefix = subs[id.subtype]
+        prefix = subs[id.subtype]["prefix"]
         num = str(id.serial_num).zfill(int(subs[id.subtype]["zfill"]))
         p = f"{root}/{self._corpus_name}/{id.subtype}/wav/{prefix}_{num}.wav"
         return Path(p)
