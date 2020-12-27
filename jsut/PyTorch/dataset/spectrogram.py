@@ -138,11 +138,14 @@ class JSUT_spec(Dataset): # I failed to understand this error
 
 
 if __name__ == "__main__":
-    print("This is spectrogram.py")
-    # dataset preparation
-    JSUT_spec(train=True, download_corpus=True)  # commented out for safety
+    # Subcorpus sample
+    from jsut.PyTorch.dataset.spectrogram import JSUT_spec
 
-    # setup
-    dataset_train_SF1 = JSUT_spec(train=True, download_corpus=False)
-    print(dataset_train_SF1[0])
-    # print(torch.load("./npVCC2016-1.0.0/trains/SF1/specs/100056.spec"))
+
+    JSUT_spec(True, ["basic5000"], download_corpus=True)
+    JSUT_spec(True, ["countersuffix26"], download_corpus=True)
+    JSUT_spec(True, ["loanword128"], download_corpus=True)
+    JSUT_spec(True, ["onomatopee300"], download_corpus=True)
+    JSUT_spec(True, ["precedent130"], download_corpus=True)
+    JSUT_spec(True, ["travel1000"], download_corpus=True)
+    JSUT_spec(True, ["voiceactress100"], download_corpus=True)
