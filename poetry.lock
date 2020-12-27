@@ -135,9 +135,9 @@ tqdm = "^4.54.1"
 
 [package.source]
 type = "git"
-url = "https://github.com/tarepan/corpuspy"
+url = "https://github.com/tarepan/corpuspy.git"
 reference = "main"
-resolved_reference = "70db7408050d17364113c937dc65f3ead95bb506"
+resolved_reference = "5dd84b0bba84028d520394e89a735078693f6f94"
 
 [[package]]
 name = "dataclasses"
@@ -597,7 +597,7 @@ testing = ["pytest (>=3.5,!=3.7.3)", "pytest-checkdocs (>=1.2.3)", "pytest-flake
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6.1"
-content-hash = "1d1e9c42dd9aede8989c3b8429a7302d7f02af5ba93648cd4c5703f759a60105"
+content-hash = "e0d1868b0c37f425f810fbdd16b4499b034a5ef8f43042ffc54129bc2dad499e"
 
 [metadata.files]
 absl-py = [
