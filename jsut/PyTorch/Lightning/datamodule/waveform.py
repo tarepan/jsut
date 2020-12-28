@@ -11,7 +11,7 @@ from ....corpus import Subtype
 
 class JSUT_wave_DataModule(pl.LightningDataModule):
     """
-    npVCC2016 speech corpus's PyTorch Lightning datamodule
+    JSUT_wave dataset's PyTorch Lightning datamodule
     """
 
     def __init__(
@@ -40,6 +40,7 @@ class JSUT_wave_DataModule(pl.LightningDataModule):
         if stage == "fit" or stage is None:
             dataset_train = JSUT_wave(
                 train=True,
+                resample_sr=self._resample_sr,
                 subtypes=self._subtypes,
                 download_corpus=self.download,
                 corpus_adress=self.corpus_adress,
@@ -53,6 +54,7 @@ class JSUT_wave_DataModule(pl.LightningDataModule):
         if stage == "test" or stage is None:
             self.data_test = JSUT_wave(
                 train=False,
+                resample_sr=self._resample_sr,
                 subtypes=self._subtypes,
                 download_corpus=self.download,
                 corpus_adress=self.corpus_adress,

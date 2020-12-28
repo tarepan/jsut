@@ -10,7 +10,7 @@ from ...dataset.spectrogram import JSUT_spec
 
 class JSUT_spec_DataModule(pl.LightningDataModule):
     """
-    npVCC2016_spec dataset's PyTorch Lightning datamodule
+    JSUT_spec dataset's PyTorch Lightning datamodule
     """
 
     def __init__(
@@ -39,12 +39,12 @@ class JSUT_spec_DataModule(pl.LightningDataModule):
         if stage == "fit" or stage is None:
             dataset_train = JSUT_spec(
                 train=True,
+                resample_sr=self._resample_sr,
                 subtypes=self._subtypes,
                 download_corpus=self.download,
                 corpus_adress=self.corpus_adress,
                 dataset_adress=self.dataset_adress,
                 transform=self.transform,
-                resample_sr=self._resample_sr,
             )
             n_train = len(dataset_train)
             self.data_train, self.data_val = random_split(
@@ -53,12 +53,12 @@ class JSUT_spec_DataModule(pl.LightningDataModule):
         if stage == "test" or stage is None:
             self.data_test = JSUT_spec(
                 train=False,
+                resample_sr=self._resample_sr,
                 subtypes=self._subtypes,
                 download_corpus=self.download,
                 corpus_adress=self.corpus_adress,
                 dataset_adress=self.dataset_adress,
                 transform=self.transform,
-                resample_sr=self._resample_sr,
             )
 
     def train_dataloader(self, *args, **kwargs):
