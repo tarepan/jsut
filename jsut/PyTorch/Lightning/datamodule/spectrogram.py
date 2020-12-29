@@ -20,7 +20,7 @@ class JSUT_spec_DataModule(pl.LightningDataModule):
         subtypes: List[Subtype] = ["basic5000"],
         transform: Callable[[Tensor], Tensor] = lambda i: i,
         corpus_adress: Optional[str] = None,
-        dataset_adress: Optional[str] = None,
+        dataset_dir_adress: Optional[str] = None,
         resample_sr: Optional[int] = None,
     ):
         super().__init__()
@@ -29,7 +29,7 @@ class JSUT_spec_DataModule(pl.LightningDataModule):
         self._subtypes = subtypes
         self.transform = transform
         self.corpus_adress = corpus_adress
-        self.dataset_adress = dataset_adress
+        self._dataset_dir_adress = dataset_dir_adress
         self._resample_sr = resample_sr
 
     def prepare_data(self, *args, **kwargs) -> None:
@@ -43,7 +43,7 @@ class JSUT_spec_DataModule(pl.LightningDataModule):
                 subtypes=self._subtypes,
                 download_corpus=self.download,
                 corpus_adress=self.corpus_adress,
-                dataset_adress=self.dataset_adress,
+                dataset_dir_adress=self._dataset_dir_adress,
                 transform=self.transform,
             )
             n_train = len(dataset_train)
@@ -57,7 +57,7 @@ class JSUT_spec_DataModule(pl.LightningDataModule):
                 subtypes=self._subtypes,
                 download_corpus=self.download,
                 corpus_adress=self.corpus_adress,
-                dataset_adress=self.dataset_adress,
+                dataset_dir_adress=self._dataset_dir_adress,
                 transform=self.transform,
             )
 

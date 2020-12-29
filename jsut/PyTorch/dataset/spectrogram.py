@@ -63,7 +63,7 @@ class JSUT_spec(Dataset): # I failed to understand this error
         subtypes: List[Subtype] = ["basic5000"],
         download_corpus: bool = False,
         corpus_adress: Optional[str] = None,
-        dataset_adress: Optional[str] = None,
+        dataset_dir_adress: Optional[str] = None,
         transform: Callable[[Tensor], Tensor] = (lambda i: i),
     ):
         """
@@ -73,7 +73,7 @@ class JSUT_spec(Dataset): # I failed to understand this error
             subtypes: Corpus item subtypes for the dataset.
             download_corpus: Whether download the corpus or not when dataset is not found.
             corpus_adress: URL/localPath of corpus archive (e.g. `s3::` can be used). None use default URL.
-            dataset_adress: URL/localPath of dataset archive (e.g. `s3::` can be used). None use default local path.
+            dataset_dir_adress: URL/localPath of JSUT_spec dataset directory (e.g. `s3::` can be used). None use default local path.
             transform: Tensor transform on load.
         """
 
@@ -83,6 +83,9 @@ class JSUT_spec(Dataset): # I failed to understand this error
         #   Download:
         #     Dataset is often saved in the private adress, so there is no `download_dataset` safety flag.
         #     `download` is common option in torchAudio datasets.
+        #   Dataset archive name:
+        #     Dataset contents differ based on argument, so archive should differ when arguments differ.
+        #     It is guaranteed by name by argument hash.
 
         # Store parameters.
         self._train = train
@@ -90,21 +93,22 @@ class JSUT_spec(Dataset): # I failed to understand this error
         self._transform = transform
 
         self._corpus = JSUT(corpus_adress, download_corpus)
-        dirname = hash_args(train, subtypes, download_corpus, corpus_adress, dataset_adress, resample_sr)
+        arg_hash = hash_args(subtypes, resample_sr)
         JSUT_spec_root = Path(".")/"tmp"/"JSUT_spec"
-        self._path_contents_local = JSUT_spec_root/"contents"/dirname
-        dataset_adress = dataset_adress if dataset_adress else str(JSUT_spec_root/"archive"/f"{dirname}.zip")
+        self._path_contents_local = JSUT_spec_root/"contents"/arg_hash
+        dataset_dir_adress = dataset_dir_adress if dataset_dir_adress else str(JSUT_spec_root/"archive")
+        dataset_archive_adress = f"{dataset_dir_adress}/{arg_hash}.zip"
 
         # Prepare data identities.
         self._ids: List[ItemIdJSUT] = list(filter(lambda id: id.subtype in subtypes, self._corpus.get_identities()))
 
         # Deploy dataset contents.
-        contents_acquired = try_to_acquire_archive_contents(dataset_adress, self._path_contents_local)
+        contents_acquired = try_to_acquire_archive_contents(dataset_archive_adress, self._path_contents_local)
         if not contents_acquired:
             # Generate the dataset contents from corpus
             print("Dataset archive file is not found. Automatically generating new dataset...")
             self._generate_dataset_contents()
-            save_archive(self._path_contents_local, dataset_adress)
+            save_archive(self._path_contents_local, dataset_archive_adress)
             print("Dataset contents was generated and archive was saved.")
 
     def _generate_dataset_contents(self) -> None:
